@@ -1,4 +1,4 @@
-# <img src="public/logo/logo.png" width="20" height="20"> TXTWrite
+# <img src="public/logo/logo.png" width="22" height="22"> TXTWrite
 
 TXTWrite is an open-source markdown editor.
 
