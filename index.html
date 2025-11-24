@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <title>TXTWrite | Markdown Editor</title>
+    <link rel="icon" type="image/png" href="/logo/logo-dark.png" />
+    <link rel="apple-touch-icon" href="/logo/logo-dark.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="application-name" content="TXTWrite" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="TXTWrite" />
+    <meta name="theme-color" content="#d4d4d4" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+      integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <script>
+      (function () {
+        const storedTheme = localStorage.getItem("theme");
+        const prefersDark =
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const isDark = storedTheme
+          ? storedTheme === "dark"
+          : prefersDark;
+        document.documentElement.classList.toggle("dark", isDark);
+      })();
+    </script>
+  </head>
+  <body
+    class="bg-neutral-300 dark:bg-neutral-800 relative overflow-hidden h-screen"
+  >
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
