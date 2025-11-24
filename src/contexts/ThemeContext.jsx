@@ -9,12 +9,12 @@ const getInitialTheme = () => {
         return 'dark';
     }
 
-    const storedTheme = window.localStorage.getItem('theme');
+    const storedTheme = globalThis.localStorage.getItem('theme');
     if (storedTheme) {
         return storedTheme;
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
 export function ThemeProvider({ children }) {
@@ -22,16 +22,16 @@ export function ThemeProvider({ children }) {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const root = window.document.documentElement;
+        const root = globalThis.document.documentElement;
         root.classList.toggle('dark', theme === 'dark');
-        window.localStorage.setItem('theme', theme);
+        globalThis.localStorage.setItem('theme', theme);
     }, [theme]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const mediaQuery = globalThis.matchMedia('(prefers-color-scheme: dark)');
         const handlePreferenceChange = (event) => {
-            const storedTheme = window.localStorage.getItem('theme');
+            const storedTheme = globalThis.localStorage.getItem('theme');
             if (!storedTheme) {
                 setThemeState(event.matches ? 'dark' : 'light');
             }

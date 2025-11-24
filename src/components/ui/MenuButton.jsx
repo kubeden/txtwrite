@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import MacStyleMenu from './MacStyleMenu';
+import MacStyleMenu from './MacStyleMenu.jsx';
 
 /**
  * A button that triggers a Mac-style dropdown menu

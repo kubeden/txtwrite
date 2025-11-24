@@ -2,18 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { Highlighter, Clock, Save, Menu, X, LogOut, CreditCard, HelpCircle } from 'lucide-react';
-import MenuButton from '@/components/ui/MenuButton';
-import WelcomeModal from '@/components/modals/WelcomeModal';
-import VersionControls from '@/components/documents/VersionControls';
-import ThemeToggle from '@/components/ui/ThemeToggle';
-import FileSidebar from '@/components/sidebar/FileSidebar';
+import MenuButton from '../ui/MenuButton.jsx';
+import WelcomeModal from '../modals/WelcomeModal.jsx';
+import VersionControls from '../documents/VersionControls.jsx';
+import ThemeToggle from '../ui/ThemeToggle.jsx';
+import FileSidebar from '../sidebar/FileSidebar.jsx';
 
 // Define menu configurations
 const fileMenuItems = [
     {
         label: 'New Document',
         onClick: () => {
-            window.dispatchEvent(new CustomEvent('create-new-document'));
+            globalThis.dispatchEvent(new CustomEvent('create-new-document'));
         },
         shortcut: '⌘+N',
     },
@@ -97,21 +97,21 @@ export default function DashboardLayout({ children }) {
             loadDocumentsFromLocalStorage();
         };
 
-        window.addEventListener('documents-updated', handleDocumentsUpdated);
+        globalThis.addEventListener('documents-updated', handleDocumentsUpdated);
         return () => {
-            window.removeEventListener('documents-updated', handleDocumentsUpdated);
+            globalThis.removeEventListener('documents-updated', handleDocumentsUpdated);
         };
     }, []);
 
     // Listen for document creation requests
     useEffect(() => {
         const handleCreateNewDocument = () => {
-            window.dispatchEvent(new CustomEvent('sidebar-create-document'));
+            globalThis.dispatchEvent(new CustomEvent('sidebar-create-document'));
         };
 
-        window.addEventListener('create-new-document', handleCreateNewDocument);
+        globalThis.addEventListener('create-new-document', handleCreateNewDocument);
         return () => {
-            window.removeEventListener('create-new-document', handleCreateNewDocument);
+            globalThis.removeEventListener('create-new-document', handleCreateNewDocument);
         };
     }, []);
 
@@ -123,10 +123,10 @@ export default function DashboardLayout({ children }) {
             setRestoreVersionFn(() => restoreVersion);
         };
 
-        window.addEventListener('version-functions-ready', handleVersionFunctions);
+        globalThis.addEventListener('version-functions-ready', handleVersionFunctions);
 
         return () => {
-            window.removeEventListener('version-functions-ready', handleVersionFunctions);
+            globalThis.removeEventListener('version-functions-ready', handleVersionFunctions);
         };
     }, []);
 
@@ -137,7 +137,7 @@ export default function DashboardLayout({ children }) {
 
         // Send immediate notification to update the file name in the sidebar
         if (activeDocument) {
-            window.dispatchEvent(new CustomEvent('file-title-changed', {
+            globalThis.dispatchEvent(new CustomEvent('file-title-changed', {
                 detail: { documentId: activeDocument.id, title: newTitle }
             }));
 
@@ -187,7 +187,7 @@ export default function DashboardLayout({ children }) {
             localStorage.setItem('lastActiveDocument', documentId);
 
             // Notify the app of document change
-            window.dispatchEvent(new CustomEvent('active-document-changed', {
+            globalThis.dispatchEvent(new CustomEvent('active-document-changed', {
                 detail: { document: doc }
             }));
         }
@@ -201,10 +201,10 @@ export default function DashboardLayout({ children }) {
             setDocumentTitle(document.title);
         };
 
-        window.addEventListener('active-document-changed', handleDocumentChange);
+        globalThis.addEventListener('active-document-changed', handleDocumentChange);
 
         return () => {
-            window.removeEventListener('active-document-changed', handleDocumentChange);
+            globalThis.removeEventListener('active-document-changed', handleDocumentChange);
         };
     }, []);
 
@@ -298,7 +298,7 @@ export default function DashboardLayout({ children }) {
                                     activeDocumentId={activeDocument?.id}
                                     handleDocumentChange={handleDocumentChange}
                                     documents={documents}
-                                    expanded={true}
+                                    expanded
                                 />
                             </div>
                         </div>
@@ -388,7 +388,7 @@ export default function DashboardLayout({ children }) {
                             activeDocumentId={activeDocument?.id}
                             handleDocumentChange={handleDocumentChange}
                             documents={documents}
-                            expanded={true}
+                            expanded
                         />
                     )}
                 </div>

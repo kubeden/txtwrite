@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X, Clock } from 'lucide-react';
-import VersionHistory from '../documents/VersionHistory';
+import VersionHistory from '../documents/VersionHistory.jsx';
 
 export default function VersionHistoryModal({ 
   isOpen, 

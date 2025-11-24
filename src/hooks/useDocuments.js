@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { saveDocumentVersion, getDocumentVersions, restoreDocumentVersion } from '@/utils/documentVersioning';
+import { saveDocumentVersion, getDocumentVersions, restoreDocumentVersion } from '../utils/documentVersioning.js';
 
 // File system constants
 const FILE_SYSTEM_KEY = 'txtwFileSystem';
@@ -158,7 +158,7 @@ export default function useDocuments(markdownText, setMarkdownText) {
         currentContentRef.current = doc.content;
 
         // Notify layout component about the document change
-        window.dispatchEvent(new CustomEvent('active-document-changed', {
+        globalThis.dispatchEvent(new CustomEvent('active-document-changed', {
           detail: { document: doc }
         }));
 
@@ -185,9 +185,9 @@ export default function useDocuments(markdownText, setMarkdownText) {
       loadDocuments();
     };
 
-    window.addEventListener('documents-updated', handleDocumentsUpdated);
+    globalThis.addEventListener('documents-updated', handleDocumentsUpdated);
     return () => {
-      window.removeEventListener('documents-updated', handleDocumentsUpdated);
+      globalThis.removeEventListener('documents-updated', handleDocumentsUpdated);
     };
   }, []);
 
@@ -197,9 +197,9 @@ export default function useDocuments(markdownText, setMarkdownText) {
       createNewDocument();
     };
 
-    window.addEventListener('sidebar-create-document', handleSidebarCreateDocument);
+    globalThis.addEventListener('sidebar-create-document', handleSidebarCreateDocument);
     return () => {
-      window.removeEventListener('sidebar-create-document', handleSidebarCreateDocument);
+      globalThis.removeEventListener('sidebar-create-document', handleSidebarCreateDocument);
     };
   }, []);
 
@@ -212,9 +212,9 @@ export default function useDocuments(markdownText, setMarkdownText) {
       }
     };
 
-    window.addEventListener('sidebar-document-changed', handleSidebarDocumentChanged);
+    globalThis.addEventListener('sidebar-document-changed', handleSidebarDocumentChanged);
     return () => {
-      window.removeEventListener('sidebar-document-changed', handleSidebarDocumentChanged);
+      globalThis.removeEventListener('sidebar-document-changed', handleSidebarDocumentChanged);
     };
   }, [activeDocumentId]);
 
@@ -262,12 +262,12 @@ export default function useDocuments(markdownText, setMarkdownText) {
       }
     };
 
-    window.addEventListener('document-title-changed', handleTitleChange);
-    window.addEventListener('file-title-changed', handleTitleChange);
+    globalThis.addEventListener('document-title-changed', handleTitleChange);
+    globalThis.addEventListener('file-title-changed', handleTitleChange);
 
     return () => {
-      window.removeEventListener('document-title-changed', handleTitleChange);
-      window.removeEventListener('file-title-changed', handleTitleChange);
+      globalThis.removeEventListener('document-title-changed', handleTitleChange);
+      globalThis.removeEventListener('file-title-changed', handleTitleChange);
     };
   }, [documents]);
 
@@ -556,10 +556,10 @@ export default function useDocuments(markdownText, setMarkdownText) {
       const notificationEvent = new CustomEvent('show-notification', {
         detail: { message: `Document saved as version ${updatedDoc.version - 1}` }
       });
-      window.dispatchEvent(notificationEvent);
+      globalThis.dispatchEvent(notificationEvent);
 
       // Update layout component about the document change
-      window.dispatchEvent(new CustomEvent('active-document-changed', {
+      globalThis.dispatchEvent(new CustomEvent('active-document-changed', {
         detail: { document: updatedDoc }
       }));
 
@@ -622,7 +622,7 @@ export default function useDocuments(markdownText, setMarkdownText) {
       currentContentRef.current = versionData.content;
 
       // Sync title changes with the file system
-      window.dispatchEvent(new CustomEvent('document-title-changed', {
+      globalThis.dispatchEvent(new CustomEvent('document-title-changed', {
         detail: { id: activeDocumentIdRef.current, title: versionData.title }
       }));
 
@@ -630,7 +630,7 @@ export default function useDocuments(markdownText, setMarkdownText) {
       const notificationEvent = new CustomEvent('show-notification', {
         detail: { message: `Restored document to version ${versionData.version}` }
       });
-      window.dispatchEvent(notificationEvent);
+      globalThis.dispatchEvent(notificationEvent);
 
       // Update document tabs
       const updatedTabs = documentTabsRef.current.map(tab => {
@@ -776,7 +776,7 @@ export default function useDocuments(markdownText, setMarkdownText) {
       localStorage.setItem(FILE_SYSTEM_KEY, JSON.stringify(updatedFs));
 
       // Notify file system to update
-      window.dispatchEvent(new CustomEvent('documents-updated'));
+      globalThis.dispatchEvent(new CustomEvent('documents-updated'));
 
       // Clear the operation flag with a delay to ensure state updates complete
       setTimeout(() => {
@@ -814,7 +814,7 @@ export default function useDocuments(markdownText, setMarkdownText) {
         currentContentRef.current = doc.content;
 
         // Notify layout component about the document change
-        window.dispatchEvent(new CustomEvent('active-document-changed', {
+        globalThis.dispatchEvent(new CustomEvent('active-document-changed', {
           detail: { document: doc }
         }));
       }
@@ -1023,12 +1023,12 @@ export default function useDocuments(markdownText, setMarkdownText) {
           // If this is the active document, notify layout of title change
           if (doc.id === activeDocumentIdRef.current) {
             // Dispatch title change event for immediate UI update
-            window.dispatchEvent(new CustomEvent('file-title-changed', {
+            globalThis.dispatchEvent(new CustomEvent('file-title-changed', {
               detail: { documentId: doc.id, title: editingTitleValue.trim() }
             }));
 
             // Keep the existing document-title-changed event for compatibility
-            window.dispatchEvent(new CustomEvent('document-title-changed', {
+            globalThis.dispatchEvent(new CustomEvent('document-title-changed', {
               detail: { id: doc.id, title: editingTitleValue.trim() }
             }));
           }
@@ -1092,7 +1092,7 @@ export default function useDocuments(markdownText, setMarkdownText) {
       }
 
       // Notify file system to update
-      window.dispatchEvent(new CustomEvent('documents-updated'));
+      globalThis.dispatchEvent(new CustomEvent('documents-updated'));
 
       // Clear title operation flag with a delay
       setTimeout(() => {

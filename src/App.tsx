@@ -1,12 +1,12 @@
 // @ts-nocheck
 import { useCallback, useEffect, useRef, useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import DocumentTabs from '@/components/documents/DocumentTabs';
-import CodeMirrorEditor from '@/components/editor/CodeMirrorEditor';
-import MarkdownPreview from '@/components/preview/MarkdownPreview';
-import StatusBar from '@/components/editor/StatusBar';
-import useDocuments from '@/hooks/useDocuments';
-import { useTheme } from '@/contexts/ThemeContext';
+import DashboardLayout from './components/layout/DashboardLayout.jsx';
+import DocumentTabs from './components/documents/DocumentTabs.jsx';
+import CodeMirrorEditor from './components/editor/CodeMirrorEditor.jsx';
+import MarkdownPreview from './components/preview/MarkdownPreview.jsx';
+import StatusBar from './components/editor/StatusBar.jsx';
+import useDocuments from './hooks/useDocuments.js';
+import { useTheme } from './contexts/ThemeContext.jsx';
 
 export default function App() {
   const [markdownText, setMarkdownText] = useState('# Loading...');
@@ -79,7 +79,7 @@ export default function App() {
 
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileView = window.innerWidth < 768;
+      const isMobileView = globalThis.innerWidth < 768;
       setIsMobile(isMobileView);
       if (isMobileView) {
         setActiveView('editor');
@@ -87,13 +87,13 @@ export default function App() {
     };
 
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    globalThis.addEventListener('resize', checkMobile);
+    return () => globalThis.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
     if (activeDocumentId && getVersions && restoreVersion) {
-      window.dispatchEvent(new CustomEvent('version-functions-ready', {
+      globalThis.dispatchEvent(new CustomEvent('version-functions-ready', {
         detail: { getVersions, restoreVersion }
       }));
     }
@@ -113,12 +113,12 @@ export default function App() {
       setTimeout(() => setNotification(null), 3000);
     };
 
-    window.addEventListener('save-document-version', handleSaveVersion);
-    window.addEventListener('show-notification', handleNotification as EventListener);
+    globalThis.addEventListener('save-document-version', handleSaveVersion);
+    globalThis.addEventListener('show-notification', handleNotification as EventListener);
 
     return () => {
-      window.removeEventListener('save-document-version', handleSaveVersion);
-      window.removeEventListener('show-notification', handleNotification as EventListener);
+      globalThis.removeEventListener('save-document-version', handleSaveVersion);
+      globalThis.removeEventListener('show-notification', handleNotification as EventListener);
     };
   }, [markdownText, saveDocumentToLocalStorage, saveNewDocumentVersion]);
 
@@ -190,9 +190,9 @@ export default function App() {
       }
     };
 
-    window.addEventListener('sidebar-document-changed', handleSidebarDocumentChange);
+    globalThis.addEventListener('sidebar-document-changed', handleSidebarDocumentChange);
     return () => {
-      window.removeEventListener('sidebar-document-changed', handleSidebarDocumentChange);
+      globalThis.removeEventListener('sidebar-document-changed', handleSidebarDocumentChange);
     };
   }, [activeDocumentId, handleDocumentChange]);
 
@@ -201,14 +201,14 @@ export default function App() {
       const customEvent = event as CustomEvent<{ documentId: string; title: string }>;
       const { documentId, title } = customEvent.detail || {};
       if (documentId && documentId === activeDocumentId) {
-        window.dispatchEvent(new CustomEvent('update-document-title', {
+        globalThis.dispatchEvent(new CustomEvent('update-document-title', {
           detail: { documentId, title }
         }));
       }
     };
 
-    window.addEventListener('file-title-changed', handleFileTitleChanged);
-    return () => window.removeEventListener('file-title-changed', handleFileTitleChanged);
+    globalThis.addEventListener('file-title-changed', handleFileTitleChanged);
+    return () => globalThis.removeEventListener('file-title-changed', handleFileTitleChanged);
   }, [activeDocumentId]);
 
   useEffect(() => {

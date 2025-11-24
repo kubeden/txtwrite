@@ -31,7 +31,7 @@ export const createEvent = (eventType, detail = {}) => {
  * @param {object} detail - The event details
  */
 export const dispatchDocumentEvent = (eventType, detail = {}) => {
-    window.dispatchEvent(createEvent(eventType, detail));
+    globalThis.dispatchEvent(createEvent(eventType, detail));
 };
 
 /**

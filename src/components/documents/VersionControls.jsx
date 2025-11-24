@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Save, History } from 'lucide-react';
-import DocumentVersions from './DocumentVersions';
-import VersionHistoryModal from '../modals/VersionHistoryModal';
+import DocumentVersions from './DocumentVersions.jsx';
+import VersionHistoryModal from '../modals/VersionHistoryModal.jsx';
 
 export default function VersionControls({
     document,
@@ -32,7 +32,7 @@ export default function VersionControls({
                 </button>
                 <button
                     onClick={() => {
-                        window.dispatchEvent(new CustomEvent('save-document-version'));
+                        globalThis.dispatchEvent(new CustomEvent('save-document-version'));
                     }}
                     className="hover:bg-neutral-200 dark:hover:bg-neutral-800 p-1 rounded"
                     title="Save new version (Cmd+S / Ctrl+S)"

@@ -10,17 +10,17 @@ export default function StatusBar({ markdownText, editStatus, getCaretPosition, 
     // Detect mobile screen size
     useEffect(() => {
         const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
+            setIsMobile(globalThis.innerWidth < 768);
         };
 
         // Initial check
         checkMobile();
 
         // Add listener for window resize
-        window.addEventListener('resize', checkMobile);
+        globalThis.addEventListener('resize', checkMobile);
 
         // Clean up
-        return () => window.removeEventListener('resize', checkMobile);
+        return () => globalThis.removeEventListener('resize', checkMobile);
     }, []);
 
     // Mobile StatusBar component

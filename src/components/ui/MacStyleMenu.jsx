@@ -128,7 +128,7 @@ const MacStyleMenu = ({
         const menuRect = menuRef.current?.getBoundingClientRect();
 
         // Calculate available space on right of the menu
-        const viewportWidth = window.innerWidth;
+        const viewportWidth = globalThis.innerWidth;
         const estimatedSubmenuWidth = 200; // Approximate width of submenu
         const rightSpace = viewportWidth - (menuRect?.right || 0);
 
@@ -187,7 +187,7 @@ const MacStyleMenu = ({
                             >
                                 <MacStyleMenu
                                     items={item.submenu}
-                                    isOpen={true}
+                                    isOpen
                                     onClose={onClose}
                                     position="right-aligned"
                                     parentRect={submenuRects[index]}

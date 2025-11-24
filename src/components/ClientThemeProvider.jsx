@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ThemeProvider } from '../contexts/ThemeContext.jsx';
 
 export default function ClientThemeProvider({ children }) {
     const [mounted, setMounted] = useState(false);

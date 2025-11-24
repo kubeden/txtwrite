@@ -8,7 +8,7 @@ import {
     themeCompartment,
     lightTheme,
     darkTheme,
-} from './CodeMirrorSetup';
+} from './CodeMirrorSetup.js';
 import {
     FaBold,
     FaItalic,
@@ -367,10 +367,10 @@ export default function CodeMirrorEditor({
 
         // Function to adjust toolbar position based on viewport changes
         const handleViewportChange = () => {
-            if (!window.visualViewport) return;
+            if (!globalThis.visualViewport) return;
 
-            const viewportHeight = window.visualViewport.height;
-            const windowHeight = window.innerHeight;
+            const viewportHeight = globalThis.visualViewport.height;
+            const windowHeight = globalThis.innerHeight;
 
             // If viewport height is significantly less than window height, keyboard is likely visible
             const isKeyboardVisible = viewportHeight < windowHeight * 0.8;
@@ -390,9 +390,9 @@ export default function CodeMirrorEditor({
         };
 
         // Listen for viewport changes
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', handleViewportChange);
-            window.visualViewport.addEventListener('scroll', handleViewportChange);
+        if (globalThis.visualViewport) {
+            globalThis.visualViewport.addEventListener('resize', handleViewportChange);
+            globalThis.visualViewport.addEventListener('scroll', handleViewportChange);
         }
 
         // Also listen for focus events on the editor to detect when keyboard might appear
@@ -406,9 +406,9 @@ export default function CodeMirrorEditor({
         }
 
         return () => {
-            if (window.visualViewport) {
-                window.visualViewport.removeEventListener('resize', handleViewportChange);
-                window.visualViewport.removeEventListener('scroll', handleViewportChange);
+            if (globalThis.visualViewport) {
+                globalThis.visualViewport.removeEventListener('resize', handleViewportChange);
+                globalThis.visualViewport.removeEventListener('scroll', handleViewportChange);
             }
 
             if (localViewRef.current) {

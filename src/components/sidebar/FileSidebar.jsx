@@ -92,7 +92,7 @@ const FileItem = ({
 
             // Add this line to dispatch an event for title updates
             if (item.documentRef) {
-                window.dispatchEvent(new CustomEvent('file-title-changed', {
+                globalThis.dispatchEvent(new CustomEvent('file-title-changed', {
                     detail: { documentId: item.documentRef, title: newName.trim() }
                 }));
             }
@@ -141,7 +141,7 @@ const FileItem = ({
                 handleDocumentChange(item.documentRef);
 
                 // Also dispatch an event to ensure the content is updated
-                window.dispatchEvent(new CustomEvent('sidebar-document-changed', {
+                globalThis.dispatchEvent(new CustomEvent('sidebar-document-changed', {
                     detail: { documentId: item.documentRef }
                 }));
             }
@@ -734,7 +734,7 @@ export default function FileSidebar({
         }
 
         // Notify the app that documents have changed
-        window.dispatchEvent(new CustomEvent('documents-updated'));
+        globalThis.dispatchEvent(new CustomEvent('documents-updated'));
     };
 
     // Create a new folder
@@ -821,7 +821,7 @@ export default function FileSidebar({
                     localStorage.setItem('documents', JSON.stringify(updatedDocs));
 
                     // Notify document title changed
-                    window.dispatchEvent(new CustomEvent('document-title-changed', {
+                    globalThis.dispatchEvent(new CustomEvent('document-title-changed', {
                         detail: { id: item.documentRef, title: newName.endsWith('.md') ? newName.slice(0, -3) : newName }
                     }));
                 }
@@ -875,7 +875,7 @@ export default function FileSidebar({
         localStorage.setItem(FILE_SYSTEM_KEY, JSON.stringify(updatedFileSystem));
 
         // Notify the app that documents have changed
-        window.dispatchEvent(new CustomEvent('documents-updated'));
+        globalThis.dispatchEvent(new CustomEvent('documents-updated'));
     };
 
     // Update an item in the file system tree
