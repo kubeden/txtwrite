@@ -1,0 +1,161 @@
+/* styles/editor-toolbar.css */
+
+.editor-toolbar {
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding: 10px;
+    background-color: rgba(245, 245, 245, 0.9);
+    border-bottom-left-radius: 10px;
+    backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    border-left: 1px solid #e5e5e5;
+    border-bottom: 1px solid #e5e5e5;
+    z-index: 10;
+  }
+  
+  .dark .editor-toolbar {
+    background-color: rgba(38, 38, 38, 0.9);
+    border-left: 1px solid #333;
+    border-bottom: 1px solid #333;
+  }
+  
+  .toolbar-button {
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  
+  .dark .toolbar-button {
+    color: #aaa;
+  }
+  
+  .toolbar-button:hover {
+    background-color: #e0e0e0;
+    color: #111;
+  }
+  
+  .dark .toolbar-button:hover {
+    background-color: #444;
+    color: #fff;
+  }
+  
+  .toolbar-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+  }
+  
+  .editor-toolbar.collapsed {
+    transform: translateX(calc(100% - 40px));
+    opacity: 0.7;
+  }
+  
+  .editor-toolbar.collapsed:hover {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  
+  .toolbar-toggle {
+    position: absolute;
+    left: -30px;
+    top: 10px;
+    background-color: rgba(245, 245, 245, 0.9);
+    border: 1px solid #e5e5e5;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #555;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  
+  .dark .toolbar-toggle {
+    background-color: rgba(38, 38, 38, 0.9);
+    border: 1px solid #333;
+    color: #aaa;
+  }
+  
+  .toolbar-toggle:hover {
+    background-color: #e0e0e0;
+    color: #111;
+  }
+  
+  .dark .toolbar-toggle:hover {
+    background-color: #444;
+    color: #fff;
+  }
+  
+  .toolbar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .toolbar-section-title {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+    padding: 0 4px;
+  }
+  
+  .dark .toolbar-section-title {
+    color: #999;
+  }
+  
+  .toolbar-divider {
+    height: 1px;
+    background-color: #e5e5e5;
+    margin: 5px 0;
+  }
+  
+  .dark .toolbar-divider {
+    background-color: #444;
+  }
+  
+  .toolbar-tooltip {
+    position: absolute;
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 100;
+  }
+  
+  .toolbar-button:hover .toolbar-tooltip {
+    opacity: 1;
+  }
+  
+  /* Keyboard shortcuts display */
+  .shortcut {
+    font-size: 10px;
+    color: #888;
+    margin-left: 4px;
+    padding: 1px 3px;
+    background-color: #f0f0f0;
+    border-radius: 3px;
+    font-family: var(--font-berkley-mono), monospace;
+  }
+  
+  .dark .shortcut {
+    background-color: #333;
+    color: #aaa;
+  }
