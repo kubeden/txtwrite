@@ -4,7 +4,31 @@ import typography from "@tailwindcss/typography";
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    "./public/**/*.{html,js,ts,jsx,tsx,mdx}",
+    "./src/**/*",
+    "./**/*.{js,ts,jsx,tsx,mdx,css,html}",
+  ],
+  // Keep all utilities (including responsive/state variants) so dynamic classNames don't get purged
+  safelist: [
+    {
+      pattern: /.+/,
+      variants: [
+        "sm",
+        "md",
+        "lg",
+        "xl",
+        "2xl",
+        "hover",
+        "focus",
+        "active",
+        "focus-visible",
+        "disabled",
+        "dark",
+        "group-hover",
+        "group-focus",
+        "group-active",
+      ],
+    },
   ],
   darkMode: "selector",
   theme: {

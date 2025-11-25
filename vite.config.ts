@@ -13,4 +13,10 @@ export default defineConfig({
       "@": resolve(__dirname, "./src"),
     },
   },
+  preview: {
+    host: "0.0.0.0",
+    port: 4173,
+    strictPort: true,
+    allowedHosts: ["txtwrite.com", "www.txtwrite.com"],
+  },
 });

@@ -2,6 +2,9 @@
 @import "tailwindcss";
 @import "./codemirror.css";
 @import "./markdown-styles.css";
+@source "./index.html";
+@source "./src/**/*";
+@source "./public/**/*";
 @custom-variant dark (&:where(.dark, .dark *));
 
 html,
