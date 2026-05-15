@@ -77,6 +77,9 @@ deploy PR previews to Kubernetes through the `kubeden/kubeden` GitOps repo.
 Required secrets:
 
 ```
+PROD_DATABASE_URL
+PROD_VITE_NEON_AUTH_URL
+PROD_VITE_NEON_DATA_API_URL
 NEON_API_KEY
 OPENAI_API_KEY
 GITOPS_TOKEN
@@ -105,6 +108,12 @@ The PR preview workflow provisions or reuses a Neon branch, resolves
 branch-specific Auth and Data API URLs, runs migrations, builds a Docker image
 with those public URLs as build args, and pushes preview manifests to the
 `txtwrite-previews` branch in the GitOps repo.
+
+When a PR into `feat/neon-backend` is merged, the close workflow runs the
+production migration with `PROD_DATABASE_URL`, builds and pushes
+`registry.k6nis.dev/txtwrite/neon:latest`, updates the main `md` GitOps
+deployment, and then removes the preview GitOps manifests and Neon branch.
+Closing a PR without merging only removes the preview resources.
 
 ---
 

@@ -18,6 +18,17 @@
     "cleanupCommand": "node scripts/cleanup-preview-gitops.mjs",
     "urlFile": ".agent/runtime/preview-url.txt"
   },
+  "production": {
+    "deployCommand": "node scripts/deploy-production-gitops.mjs",
+    "url": "https://md.k6nis.dev",
+    "urlFile": ".agent/runtime/production-url.txt",
+    "imageRepository": "registry.k6nis.dev/txtwrite/neon",
+    "imageTag": "latest",
+    "imagePlatform": "linux/amd64",
+    "gitopsBranch": "main",
+    "deploymentPath": "k8s-cluster-configuration/applications/md/base/deployment.yml",
+    "rolloutAnnotation": "txtwrite.k6nis.dev/image-sha"
+  },
   "neon": {
     "databaseName": "neondb",
     "roleName": "neondb_owner",

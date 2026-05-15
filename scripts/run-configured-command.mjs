@@ -9,7 +9,10 @@ const name = args._?.[0];
 if (!name) throw new Error("Usage: node scripts/run-configured-command.mjs <command-name>");
 
 const config = await loadConfig();
-const command = config.commands?.[name] || config.preview?.[`${name}Command`] || "";
+const command = config.commands?.[name] ||
+  config.preview?.[`${name}Command`] ||
+  config.production?.[`${name}Command`] ||
+  "";
 if (!command) {
   console.log(`No ${name} command configured; skipping.`);
   setOutput("skipped", "true");

@@ -69,6 +69,10 @@ const messages = {
   previewCleanup: [
     "I am cleaning up this preview now.",
     "I will remove the GitOps manifests and delete the Neon preview branch if it still exists."
+  ],
+  productionStarted: [
+    "This PR was merged, so I am deploying it to the main md app now.",
+    "I will run the production migration, publish the production image, update GitOps, and then clean up the preview resources."
   ]
 };
 
