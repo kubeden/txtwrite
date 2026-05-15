@@ -51,6 +51,7 @@ jobs:
 
       - name: Say production deploy is starting
         if: github.event.pull_request.merged == true || inputs.merged == 'true'
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
@@ -84,6 +85,7 @@ jobs:
         run: node scripts/deploy-production-gitops.mjs
 
       - name: Say cleanup is starting
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
@@ -104,6 +106,7 @@ jobs:
         run: node scripts/run-configured-command.mjs cleanup
 
       - name: Comment cleanup result
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
