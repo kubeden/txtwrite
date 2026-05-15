@@ -32,7 +32,7 @@ function setSkip(reason) {
 }
 
 let issueNumber = event.issue?.number || Number(event.inputs?.issue_number || 0);
-let triggerBody = event.comment?.body || event.inputs?.prompt || "";
+let triggerBody = event.comment?.body || event.inputs?.prompt || event.issue?.body || "";
 
 if (!issueNumber) {
   setSkip("No issue number found.");
@@ -44,14 +44,18 @@ if (event.issue?.pull_request) {
   process.exit(0);
 }
 
-if (eventName === "issue_comment" && !triggerMatches(triggerBody)) {
+if (["issue_comment", "issues"].includes(eventName) && !triggerMatches(triggerBody)) {
   setSkip(`Comment did not mention ${provider}.`);
   process.exit(0);
 }
 
-const association = event.comment?.author_association || event.sender?.author_association || "NONE";
+const association =
+  event.comment?.author_association ||
+  event.issue?.author_association ||
+  event.sender?.author_association ||
+  "NONE";
 if (
-  eventName === "issue_comment" &&
+  ["issue_comment", "issues"].includes(eventName) &&
   !config.allowedAuthorAssociations.includes(association)
 ) {
   setSkip(`Author association ${association} is not allowed.`);

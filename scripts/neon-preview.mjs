@@ -93,6 +93,7 @@ if (command === "create") {
   const publicUrls = await resolvePublicUrls({
     branchId: branch.branchId,
     databaseName,
+    databaseUrl: branch.databaseUrl,
     getAuthUrl: boolOption("NEON_GET_AUTH_URL", config.neon.publicUrls.auth),
     getDataApiUrl: boolOption("NEON_GET_DATA_API_URL", config.neon.publicUrls.dataApi),
     requirePublicUrls: boolOption("NEON_REQUIRE_PUBLIC_URLS", config.neon.publicUrls.required),

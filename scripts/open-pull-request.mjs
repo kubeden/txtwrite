@@ -17,7 +17,7 @@ const existing = await findOpenPullByHead(context.headBranch);
 const body = [
   `Implements #${context.issue.number}.`,
   "",
-  "## Agent Run",
+  "## What I Did",
   `- Provider: ${context.provider}`,
   `- Source issue: #${context.issue.number}`,
   neon.enabled
@@ -27,7 +27,7 @@ const body = [
   "## Reviewer Notes",
   "- Check the preview deployment before merging.",
   "- Confirm migrations and data changes are expected.",
-  "- This PR was generated from an issue comment trigger."
+  "- This PR was generated after I was tagged in the issue."
 ].join("\n");
 
 const pull =
@@ -43,13 +43,13 @@ const pull =
 await addIssueLabels(pull.number, [config.labels.agentPr].filter(Boolean));
 
 const comment = [
-  `Created agent PR: ${pull.html_url}`,
+  `I opened a draft PR for this: ${pull.html_url}`,
   "",
   neon.enabled
-    ? `Neon preview branch: \`${neon.branchName}\` (${neon.databaseUrlRedacted})`
-    : "Neon preview branch: not configured.",
+    ? `I used Neon preview branch \`${neon.branchName}\` (${neon.databaseUrlRedacted}).`
+    : "No Neon preview branch was configured.",
   "",
-  "The PR is a draft until a human reviews the diff and preview."
+  "I left it as a draft so the diff, migration behavior, and preview can be reviewed before merge."
 ].join("\n");
 
 await createIssueComment(context.issue.number, comment);

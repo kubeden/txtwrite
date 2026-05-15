@@ -59,6 +59,12 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: node scripts/neon-preview.mjs create
 
+      - name: Say preview is starting
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/agent-status.mjs --stage previewStarted
+
       - name: Run migrations and checks
         env:
           DATABASE_URL: ${{ steps.neon.outputs.database_url }}

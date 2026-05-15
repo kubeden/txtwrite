@@ -145,6 +145,31 @@ function dataApiUrlFrom(data) {
   return findUrl(data, ["data_api_url", "dataApiUrl", "data_api_endpoint", "dataApiEndpoint", "url"]);
 }
 
+function neonAuthSchemaConflict(error) {
+  return error.status === 409 &&
+    String(error.data?.message ?? error.message).includes("neon_auth") &&
+    String(error.data?.message ?? error.message).includes("schema already exists");
+}
+
+function derivePublicUrlsFromDatabaseUrl({ databaseUrl, databaseName }) {
+  if (!databaseUrl) return { authUrl: "", dataApiUrl: "" };
+
+  try {
+    const { hostname } = new URL(databaseUrl);
+    const [firstLabel, ...rest] = hostname.split(".");
+    const endpoint = firstLabel.replace(/-pooler$/, "");
+    if (!endpoint || rest.length === 0) return { authUrl: "", dataApiUrl: "" };
+
+    const publicSuffix = rest.join(".").replace(/\.neon\.tech$/, ".neon.build");
+    return {
+      authUrl: `https://${endpoint}.neonauth.${publicSuffix}/${databaseName}/auth`,
+      dataApiUrl: `https://${endpoint}.apirest.${publicSuffix}/${databaseName}/rest/v1`
+    };
+  } catch {
+    return { authUrl: "", dataApiUrl: "" };
+  }
+}
+
 async function getNeonAuth({ branchId }) {
   const projectId = process.env.NEON_PROJECT_ID;
   return neonRequest(`/projects/${projectId}/branches/${branchId}/auth`);
@@ -195,7 +220,8 @@ async function createNeonDataApi({ branchId, databaseName, authProvider }) {
   return neonRequest(`/projects/${projectId}/branches/${branchId}/data-api/${databaseName}`, {
     method: "POST",
     body: JSON.stringify({
-      auth_provider: authProvider
+      auth_provider: authProvider,
+      ...(authProvider === "neon_auth" ? { skip_auth_schema: true } : {})
     })
   });
 }
@@ -203,6 +229,7 @@ async function createNeonDataApi({ branchId, databaseName, authProvider }) {
 export async function resolvePublicUrls({
   branchId,
   databaseName,
+  databaseUrl,
   getAuthUrl,
   getDataApiUrl,
   requirePublicUrls,
@@ -216,6 +243,7 @@ export async function resolvePublicUrls({
     authUrl: "",
     dataApiUrl: ""
   };
+  const derived = derivePublicUrlsFromDatabaseUrl({ databaseUrl, databaseName });
 
   if (getAuthUrl || provisionAuth) {
     try {
@@ -225,7 +253,15 @@ export async function resolvePublicUrls({
     }
 
     if (!result.authUrl && provisionAuth) {
-      result.authUrl = authUrlFrom(await createNeonAuth({ branchId, databaseName, authProvider }));
+      try {
+        result.authUrl = authUrlFrom(await createNeonAuth({ branchId, databaseName, authProvider }));
+      } catch (error) {
+        if (!neonAuthSchemaConflict(error)) throw error;
+        console.warn(
+          "Neon Auth schema already exists; using the branch-derived Auth URL instead of provisioning."
+        );
+        result.authUrl = derived.authUrl;
+      }
     }
 
     if (result.authUrl && authTrustedDomains.length > 0) {
@@ -243,9 +279,17 @@ export async function resolvePublicUrls({
     }
 
     if (!result.dataApiUrl && provisionDataApi) {
-      result.dataApiUrl = dataApiUrlFrom(
-        await createNeonDataApi({ branchId, databaseName, authProvider: dataApiAuthProvider })
-      );
+      try {
+        result.dataApiUrl = dataApiUrlFrom(
+          await createNeonDataApi({ branchId, databaseName, authProvider: dataApiAuthProvider })
+        );
+      } catch (error) {
+        if (!neonAuthSchemaConflict(error)) throw error;
+        console.warn(
+          "Neon Auth schema already exists; using the branch-derived Data API URL instead of provisioning."
+        );
+        result.dataApiUrl = derived.dataApiUrl;
+      }
     }
   }
 

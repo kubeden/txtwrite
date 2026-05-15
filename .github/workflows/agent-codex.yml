@@ -1,6 +1,8 @@
 name: "Agent: Codex Issue To PR"
 
 on:
+  issues:
+    types: [opened, edited]
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -25,6 +27,7 @@ jobs:
   implement:
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'issues' ||
       (github.event_name == 'issue_comment' && !github.event.issue.pull_request)
     runs-on: ubuntu-latest
     steps:
@@ -58,6 +61,12 @@ jobs:
         if: steps.prepare.outputs.should_run == 'true'
         run: git switch -c "${{ steps.prepare.outputs.head_branch }}"
 
+      - name: Say I picked it up
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/agent-status.mjs --stage pickedUp
+
       - name: Create Neon branch
         if: steps.prepare.outputs.should_run == 'true'
         id: neon
@@ -80,6 +89,12 @@ jobs:
           HEAD_BRANCH: ${{ steps.prepare.outputs.head_branch }}
         run: node scripts/neon-preview.mjs create
 
+      - name: Report database setup
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/agent-status.mjs --stage neonReady
+
       - name: Install dependencies
         if: steps.prepare.outputs.should_run == 'true'
         run: node scripts/run-configured-command.mjs install
@@ -88,6 +103,12 @@ jobs:
         if: steps.prepare.outputs.should_run == 'true'
         id: prompt
         run: node scripts/render-prompt.mjs --provider codex
+
+      - name: Say Codex is starting
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/agent-status.mjs --stage runningAgent
 
       - name: Run Codex
         if: steps.prepare.outputs.should_run == 'true'
@@ -118,6 +139,12 @@ jobs:
           node scripts/run-configured-command.mjs test
           node scripts/run-configured-command.mjs build
 
+      - name: Report checks passed
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/agent-status.mjs --stage checksPassed
+
       - name: Commit agent changes
         if: steps.prepare.outputs.should_run == 'true'
         id: commit
@@ -137,7 +164,13 @@ jobs:
       - name: Report no changes
         if: steps.prepare.outputs.should_run == 'true' && steps.commit.outputs.changed != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ steps.prepare.outputs.issue_number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "Codex ran for this issue but did not produce a source diff."
+        run: node scripts/agent-status.mjs --stage noChanges
+
+      - name: Report failure
+        if: failure() && steps.prepare.outputs.should_run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.prepare.outputs.issue_number }}
+        run: node scripts/agent-status.mjs --stage failed

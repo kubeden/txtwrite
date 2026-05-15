@@ -24,6 +24,12 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Say cleanup is starting
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/agent-status.mjs --stage previewCleanup
+
       - name: Delete Neon preview branch
         id: neon
         env:
@@ -52,7 +58,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [ "${{ steps.neon.outputs.deleted }}" = "true" ]; then
-            gh pr comment "$PR_NUMBER" --body "Deleted Neon preview branch \`${{ steps.neon.outputs.branch_name }}\`."
+            gh pr comment "$PR_NUMBER" --body "Cleanup is done. I deleted the Neon preview branch \`${{ steps.neon.outputs.branch_name }}\` and removed the GitOps preview manifests."
           else
-            gh pr comment "$PR_NUMBER" --body "No Neon preview branch was deleted: ${{ steps.neon.outputs.reason }}"
+            gh pr comment "$PR_NUMBER" --body "Cleanup is done. I removed the GitOps preview manifests. Neon did not delete a branch: ${{ steps.neon.outputs.reason }}"
           fi

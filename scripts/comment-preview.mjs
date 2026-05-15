@@ -17,15 +17,15 @@ try {
 }
 
 const body = [
-  "## Preview Environment",
+  "The preview is ready.",
   "",
-  previewUrl ? `Preview URL: ${previewUrl}` : "Preview URL: not provided by the deployment adapter.",
+  previewUrl ? `Review it here: ${previewUrl}` : "I finished the preview workflow, but the deploy adapter did not return a URL.",
   neon.enabled
-    ? `Neon branch: \`${neon.branchName}\` (${neon.branchId})`
-    : "Neon branch: not configured.",
-  neon.enabled && neon.expiresAt ? `Expires: ${neon.expiresAt}` : "",
+    ? `I used Neon branch \`${neon.branchName}\` (${neon.branchId}).`
+    : "No Neon branch was configured for this run.",
+  neon.enabled && neon.expiresAt ? `That branch expires at ${neon.expiresAt}.` : "",
   "",
-  "Use this environment for review only. Do not copy credentials into comments or commits."
+  "Use this environment for review only. I did not write database credentials into comments or commits."
 ]
   .filter(Boolean)
   .join("\n");
