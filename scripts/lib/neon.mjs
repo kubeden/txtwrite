@@ -160,7 +160,7 @@ function derivePublicUrlsFromDatabaseUrl({ databaseUrl, databaseName }) {
     const endpoint = firstLabel.replace(/-pooler$/, "");
     if (!endpoint || rest.length === 0) return { authUrl: "", dataApiUrl: "" };
 
-    const publicSuffix = rest.join(".").replace(/\.neon\.tech$/, ".neon.build");
+    const publicSuffix = rest.join(".");
     return {
       authUrl: `https://${endpoint}.neonauth.${publicSuffix}/${databaseName}/auth`,
       dataApiUrl: `https://${endpoint}.apirest.${publicSuffix}/${databaseName}/rest/v1`
