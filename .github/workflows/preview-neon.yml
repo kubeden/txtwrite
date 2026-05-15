@@ -1,0 +1,97 @@
+name: "Preview: Neon Branch And Deploy"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [feat/neon-backend]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create Neon preview branch
+        id: neon
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_PARENT_BRANCH_ID: ${{ vars.NEON_PARENT_BRANCH_ID }}
+          NEON_DATABASE_NAME: ${{ vars.NEON_DATABASE_NAME }}
+          NEON_ROLE_NAME: ${{ vars.NEON_ROLE_NAME }}
+          NEON_POOLED: ${{ vars.NEON_POOLED }}
+          NEON_DEFAULT_TTL_HOURS: ${{ vars.NEON_DEFAULT_TTL_HOURS }}
+          NEON_GET_AUTH_URL: ${{ vars.NEON_GET_AUTH_URL }}
+          NEON_GET_DATA_API_URL: ${{ vars.NEON_GET_DATA_API_URL }}
+          NEON_REQUIRE_PUBLIC_URLS: ${{ vars.NEON_REQUIRE_PUBLIC_URLS }}
+          NEON_PROVISION_AUTH: ${{ vars.NEON_PROVISION_AUTH }}
+          NEON_PROVISION_DATA_API: ${{ vars.NEON_PROVISION_DATA_API }}
+          NEON_AUTH_PROVIDER: ${{ vars.NEON_AUTH_PROVIDER }}
+          NEON_DATA_API_AUTH_PROVIDER: ${{ vars.NEON_DATA_API_AUTH_PROVIDER }}
+          NEON_AUTH_TRUSTED_DOMAINS: https://md-pr-${{ github.event.pull_request.number }}.k6nis.dev
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: node scripts/neon-preview.mjs create
+
+      - name: Run migrations and checks
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.database_url }}
+          VITE_NEON_AUTH_URL: ${{ steps.neon.outputs.auth_url }}
+          VITE_NEON_DATA_API_URL: ${{ steps.neon.outputs.data_api_url }}
+        run: |
+          node scripts/run-configured-command.mjs install
+          node scripts/run-configured-command.mjs migrate
+          node scripts/run-configured-command.mjs lint
+          node scripts/run-configured-command.mjs test
+          node scripts/run-configured-command.mjs build
+
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v5
+        with:
+          repository: kubeden/kubeden
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: .agent/runtime/gitops
+          fetch-depth: 0
+
+      - name: Deploy preview
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.database_url }}
+          VITE_NEON_AUTH_URL: ${{ steps.neon.outputs.auth_url }}
+          VITE_NEON_DATA_API_URL: ${{ steps.neon.outputs.data_api_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ZOT_REGISTRY_USERNAME: ${{ secrets.ZOT_REGISTRY_USERNAME }}
+          ZOT_REGISTRY_PASSWORD: ${{ secrets.ZOT_REGISTRY_PASSWORD }}
+        run: node scripts/run-configured-command.mjs deploy
+
+      - name: Comment preview details
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/comment-preview.mjs

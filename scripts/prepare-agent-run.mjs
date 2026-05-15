@@ -1,0 +1,105 @@
+#!/usr/bin/env node
+import { readFile } from "node:fs/promises";
+import { parseArgs } from "./lib/args.mjs";
+import { loadConfig } from "./lib/config.mjs";
+import { writeJson } from "./lib/files.mjs";
+import { fetchIssue, fetchIssueComments } from "./lib/github.mjs";
+import { issueBranchName } from "./lib/names.mjs";
+import { setOutput } from "./lib/output.mjs";
+
+const args = parseArgs();
+const provider = args.provider;
+if (!["codex", "claude"].includes(provider)) {
+  throw new Error("--provider must be codex or claude.");
+}
+
+const config = await loadConfig();
+const eventPath = process.env.GITHUB_EVENT_PATH;
+const eventName = process.env.GITHUB_EVENT_NAME;
+const event = eventPath ? JSON.parse(await readFile(eventPath, "utf8")) : {};
+
+function triggerMatches(body) {
+  if (provider === "codex") {
+    return /(^|\s)(@codex\b|@kubeden-agent\b|\/agent\s+codex\b|\/kubeden-agent\b)/i.test(body);
+  }
+  return /(^|\s)(@claude\b|\/agent\s+claude\b)/i.test(body);
+}
+
+function setSkip(reason) {
+  setOutput("should_run", "false");
+  setOutput("skip_reason", reason);
+  console.log(`Skipping agent run: ${reason}`);
+}
+
+let issueNumber = event.issue?.number || Number(event.inputs?.issue_number || 0);
+let triggerBody = event.comment?.body || event.inputs?.prompt || "";
+
+if (!issueNumber) {
+  setSkip("No issue number found.");
+  process.exit(0);
+}
+
+if (event.issue?.pull_request) {
+  setSkip("This workflow handles issues, not pull request comments.");
+  process.exit(0);
+}
+
+if (eventName === "issue_comment" && !triggerMatches(triggerBody)) {
+  setSkip(`Comment did not mention ${provider}.`);
+  process.exit(0);
+}
+
+const association = event.comment?.author_association || event.sender?.author_association || "NONE";
+if (
+  eventName === "issue_comment" &&
+  !config.allowedAuthorAssociations.includes(association)
+) {
+  setSkip(`Author association ${association} is not allowed.`);
+  process.exit(0);
+}
+
+const issue = await fetchIssue(issueNumber);
+const comments = await fetchIssueComments(issueNumber);
+const headBranch = issueBranchName({
+  provider,
+  issueNumber,
+  title: issue.title
+});
+const prTitle = `${provider === "codex" ? "Codex" : "Claude"}: ${issue.title}`;
+
+const context = {
+  provider,
+  trigger: {
+    eventName,
+    actor: event.sender?.login || process.env.GITHUB_ACTOR || "",
+    association,
+    body: triggerBody
+  },
+  issue: {
+    number: issue.number,
+    title: issue.title,
+    body: issue.body || "",
+    htmlUrl: issue.html_url,
+    labels: issue.labels?.map((label) => label.name) ?? [],
+    author: issue.user?.login || ""
+  },
+  comments: comments.map((comment) => ({
+    id: comment.id,
+    author: comment.user?.login || "",
+    body: comment.body || "",
+    createdAt: comment.created_at,
+    htmlUrl: comment.html_url
+  })),
+  headBranch,
+  baseBranch: config.baseBranch,
+  prTitle
+};
+
+await writeJson(".agent/runtime/issue-context.json", context);
+
+setOutput("should_run", "true");
+setOutput("issue_number", issue.number);
+setOutput("head_branch", headBranch);
+setOutput("base_branch", config.baseBranch);
+setOutput("pr_title", prTitle);
+setOutput("context_file", ".agent/runtime/issue-context.json");

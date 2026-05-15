@@ -1,0 +1,143 @@
+name: "Agent: Codex Issue To PR"
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number to implement
+        required: true
+      prompt:
+        description: Optional extra instruction
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: agent-codex-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/neon-backend
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Prepare agent run
+        id: prepare
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-agent-run.mjs --provider codex
+
+      - name: Stop when not triggered
+        if: steps.prepare.outputs.should_run != 'true'
+        run: echo "${{ steps.prepare.outputs.skip_reason }}"
+
+      - name: Create work branch
+        if: steps.prepare.outputs.should_run == 'true'
+        run: git switch -c "${{ steps.prepare.outputs.head_branch }}"
+
+      - name: Create Neon branch
+        if: steps.prepare.outputs.should_run == 'true'
+        id: neon
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_PARENT_BRANCH_ID: ${{ vars.NEON_PARENT_BRANCH_ID }}
+          NEON_DATABASE_NAME: ${{ vars.NEON_DATABASE_NAME }}
+          NEON_ROLE_NAME: ${{ vars.NEON_ROLE_NAME }}
+          NEON_POOLED: ${{ vars.NEON_POOLED }}
+          NEON_DEFAULT_TTL_HOURS: ${{ vars.NEON_DEFAULT_TTL_HOURS }}
+          NEON_GET_AUTH_URL: ${{ vars.NEON_GET_AUTH_URL }}
+          NEON_GET_DATA_API_URL: ${{ vars.NEON_GET_DATA_API_URL }}
+          NEON_REQUIRE_PUBLIC_URLS: ${{ vars.NEON_REQUIRE_PUBLIC_URLS }}
+          NEON_PROVISION_AUTH: ${{ vars.NEON_PROVISION_AUTH }}
+          NEON_PROVISION_DATA_API: ${{ vars.NEON_PROVISION_DATA_API }}
+          NEON_AUTH_PROVIDER: ${{ vars.NEON_AUTH_PROVIDER }}
+          NEON_DATA_API_AUTH_PROVIDER: ${{ vars.NEON_DATA_API_AUTH_PROVIDER }}
+          ISSUE_NUMBER: ${{ steps.prepare.outputs.issue_number }}
+          HEAD_BRANCH: ${{ steps.prepare.outputs.head_branch }}
+        run: node scripts/neon-preview.mjs create
+
+      - name: Install dependencies
+        if: steps.prepare.outputs.should_run == 'true'
+        run: node scripts/run-configured-command.mjs install
+
+      - name: Render prompt
+        if: steps.prepare.outputs.should_run == 'true'
+        id: prompt
+        run: node scripts/render-prompt.mjs --provider codex
+
+      - name: Run Codex
+        if: steps.prepare.outputs.should_run == 'true'
+        id: codex
+        uses: openai/codex-action@v1
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.database_url }}
+          NEON_BRANCH_ID: ${{ steps.neon.outputs.branch_id }}
+          NEON_BRANCH_NAME: ${{ steps.neon.outputs.branch_name }}
+          VITE_NEON_AUTH_URL: ${{ steps.neon.outputs.auth_url }}
+          VITE_NEON_DATA_API_URL: ${{ steps.neon.outputs.data_api_url }}
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ steps.prompt.outputs.prompt_file }}
+          output-file: .agent/runtime/codex-final.md
+          sandbox: workspace-write
+          codex-args: '["--skip-git-repo-check"]'
+
+      - name: Run configured checks
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.database_url }}
+          VITE_NEON_AUTH_URL: ${{ steps.neon.outputs.auth_url }}
+          VITE_NEON_DATA_API_URL: ${{ steps.neon.outputs.data_api_url }}
+        run: |
+          node scripts/run-configured-command.mjs migrate
+          node scripts/run-configured-command.mjs lint
+          node scripts/run-configured-command.mjs test
+          node scripts/run-configured-command.mjs build
+
+      - name: Commit agent changes
+        if: steps.prepare.outputs.should_run == 'true'
+        id: commit
+        run: node scripts/commit-agent-changes.mjs
+
+      - name: Push branch
+        if: steps.prepare.outputs.should_run == 'true' && steps.commit.outputs.changed == 'true'
+        run: git push --set-upstream origin "${{ steps.prepare.outputs.head_branch }}"
+
+      - name: Open pull request
+        if: steps.prepare.outputs.should_run == 'true' && steps.commit.outputs.changed == 'true'
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/open-pull-request.mjs
+
+      - name: Report no changes
+        if: steps.prepare.outputs.should_run == 'true' && steps.commit.outputs.changed != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ steps.prepare.outputs.issue_number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Codex ran for this issue but did not produce a source diff."

@@ -1,0 +1,20 @@
+name: "Preview: Schema Diff"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [feat/neon-backend]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  schema-diff:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Schema diff placeholder
+        run: |
+          echo "Wire this job to Neon's schema diff action once your project has migrations configured."
+          echo "Keep it separate from agent execution so schema review remains visible to humans."

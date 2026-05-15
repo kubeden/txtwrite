@@ -1,0 +1,52 @@
+{
+  "baseBranch": "feat/neon-backend",
+  "allowedAuthorAssociations": ["OWNER", "MEMBER", "COLLABORATOR"],
+  "labels": {
+    "agentPr": "agent",
+    "preview": "preview"
+  },
+  "commands": {
+    "install": "",
+    "lint": "deno task lint",
+    "test": "",
+    "build": "deno task build",
+    "migrate": "deno task db:migrate"
+  },
+  "preview": {
+    "enabled": true,
+    "deployCommand": "node scripts/deploy-preview-gitops.mjs",
+    "cleanupCommand": "node scripts/cleanup-preview-gitops.mjs",
+    "urlFile": ".agent/runtime/preview-url.txt"
+  },
+  "neon": {
+    "databaseName": "neondb",
+    "roleName": "neondb_owner",
+    "pooled": true,
+    "ttlHours": 48,
+    "deleteOnPrClose": true,
+    "publicUrls": {
+      "auth": true,
+      "dataApi": true,
+      "required": true,
+      "provisionAuth": true,
+      "provisionDataApi": true,
+      "authProvider": "better_auth",
+      "dataApiAuthProvider": "neon_auth"
+    }
+  },
+  "gitops": {
+    "repository": "kubeden/kubeden",
+    "checkoutPath": ".agent/runtime/gitops",
+    "branch": "txtwrite-previews",
+    "baseBranch": "main",
+    "previewRoot": "k8s-cluster-configuration/applications/md/previews",
+    "imageRepository": "registry.k6nis.dev/txtwrite/neon",
+    "imagePlatform": "linux/amd64",
+    "appPrefix": "md-pr",
+    "hostSuffix": "k6nis.dev",
+    "gatewayClassName": "traefik",
+    "clusterIssuer": "letsencrypt-prod",
+    "containerPort": 4173,
+    "servicePort": 80
+  }
+}

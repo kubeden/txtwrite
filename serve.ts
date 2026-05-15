@@ -20,7 +20,7 @@ const contentTypes: Record<string, string> = {
 };
 
 function contentType(pathname: string) {
-  const extension = pathname.match(/\.[^.\/]+$/)?.[0].toLowerCase();
+  const extension = pathname.match(/\.[^./]+$/)?.[0].toLowerCase();
   return extension
     ? contentTypes[extension] ?? "application/octet-stream"
     : "application/octet-stream";

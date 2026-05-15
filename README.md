@@ -69,6 +69,43 @@ automatically.
 - The app stores the active workspace locally for editor compatibility, but
   clears it on sign out and when a different Neon Auth user signs in.
 
+## Preview Automation
+
+GitHub Actions can create Codex-authored PRs from trusted issue comments and
+deploy PR previews to Kubernetes through the `kubeden/kubeden` GitOps repo.
+
+Required secrets:
+
+```
+NEON_API_KEY
+OPENAI_API_KEY
+GITOPS_TOKEN
+ZOT_REGISTRY_USERNAME
+ZOT_REGISTRY_PASSWORD
+```
+
+Required variables:
+
+```
+NEON_PROJECT_ID
+```
+
+Optional variables override `agent.config.json` defaults:
+
+```
+NEON_PARENT_BRANCH_ID
+NEON_DATABASE_NAME
+NEON_ROLE_NAME
+NEON_DEFAULT_TTL_HOURS
+NEON_AUTH_PROVIDER
+NEON_DATA_API_AUTH_PROVIDER
+```
+
+The PR preview workflow provisions or reuses a Neon branch, resolves
+branch-specific Auth and Data API URLs, runs migrations, builds a Docker image
+with those public URLs as build args, and pushes preview manifests to the
+`txtwrite-previews` branch in the GitOps repo.
+
 ---
 
 built by <a href="https://x.com/@kuberdenis">@kuberdenis</a> =)

@@ -1,0 +1,58 @@
+name: "Cleanup: Neon Preview Branch"
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [feat/neon-backend]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/neon-backend
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Delete Neon preview branch
+        id: neon
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: node scripts/neon-preview.mjs delete
+
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v5
+        with:
+          repository: kubeden/kubeden
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: .agent/runtime/gitops
+          fetch-depth: 0
+
+      - name: Cleanup GitOps preview
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/run-configured-command.mjs cleanup
+
+      - name: Comment cleanup result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "${{ steps.neon.outputs.deleted }}" = "true" ]; then
+            gh pr comment "$PR_NUMBER" --body "Deleted Neon preview branch \`${{ steps.neon.outputs.branch_name }}\`."
+          else
+            gh pr comment "$PR_NUMBER" --body "No Neon preview branch was deleted: ${{ steps.neon.outputs.reason }}"
+          fi
