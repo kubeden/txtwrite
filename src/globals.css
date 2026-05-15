@@ -13,6 +13,43 @@ body,
   height: 100%;
 }
 
+:root {
+  --app-viewport-height: 100dvh;
+}
+
+html {
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    height: var(--app-viewport-height);
+    max-height: var(--app-viewport-height);
+    overflow: hidden;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 @theme {
   --color-brand-dark: oklch(0.22 0 0);
   --color-brand-light: oklch(0.97 0 0);
@@ -63,6 +100,15 @@ body,
   }
 }
 
+@keyframes slideLeft {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -74,6 +120,10 @@ body,
 
 .animate-slide-right {
   animation: slideRight 0.3s ease-out forwards;
+}
+
+.animate-slide-left {
+  animation: slideLeft 0.3s ease-out forwards;
 }
 
 .animate-fade-in {

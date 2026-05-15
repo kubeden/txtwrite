@@ -1,7 +1,14 @@
-// @ts-check
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { EditorView } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import {
@@ -13,8 +20,6 @@ import {
 import {
   FaBold,
   FaCheckSquare,
-  FaChevronDown,
-  FaChevronUp,
   FaCode,
   FaHeading,
   FaImage,
@@ -27,6 +32,21 @@ import {
 } from "react-icons/fa";
 
 import { Eye, EyeOff, PanelRight, PanelRightClose } from "lucide-react";
+import type { ScrollableEditorView } from "../../types/editor.ts";
+
+interface CodeMirrorEditorProps {
+  markdownText: string;
+  onTextChange: (value: string) => void;
+  onScroll?: (percentage: number) => void;
+  saveDocumentToLocalStorage?: (value: string) => boolean;
+  setEditStatus: Dispatch<SetStateAction<"editing" | "saved">>;
+  isDarkMode: boolean;
+  editorViewRef?: MutableRefObject<ScrollableEditorView | null>;
+  isMobile: boolean;
+  isPreviewVisible: boolean;
+  togglePreview: () => void;
+  onEditorReady?: () => void;
+}
 
 export default function CodeMirrorEditor({
   markdownText,
@@ -39,49 +59,50 @@ export default function CodeMirrorEditor({
   isPreviewVisible,
   togglePreview,
   onEditorReady,
-}) {
-  const editorRef = useRef(null);
-  const localViewRef = useRef(null);
-  const toolbarScrollRef = useRef(null);
-  const toolbarRef = useRef(null); // Add ref for toolbar container
+}: CodeMirrorEditorProps) {
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const localViewRef = useRef<ScrollableEditorView | null>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
   const contentRef = useRef(markdownText);
+  const initialMarkdownTextRef = useRef(markdownText);
+  const initialIsDarkModeRef = useRef(isDarkMode);
+  const onTextChangeRef = useRef(onTextChange);
+  const onScrollRef = useRef(onScroll);
+  const onEditorReadyRef = useRef(onEditorReady);
+  const editorViewRefRef = useRef(editorViewRef);
   const isUpdatingRef = useRef(false);
-  const lastCursorPositionRef = useRef(null);
-  const debounceTimerRef = useRef(null);
+  const isActivelyTypingRef = useRef(false);
+  const lastCursorPositionRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializationCompleteRef = useRef(false);
-
-  // New state to track keyboard visibility
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-
-  // New state to track toolbar collapse state
-  const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
 
   // Update the content reference when markdownText changes
   useEffect(() => {
     contentRef.current = markdownText;
   }, [markdownText]);
 
-  // Toggle toolbar collapsed state
-  const toggleToolbar = useCallback(() => {
-    setIsToolbarCollapsed((prev) => !prev);
-
-    // Store preference in localStorage
-    localStorage.setItem("toolbarCollapsed", (!isToolbarCollapsed).toString());
-  }, [isToolbarCollapsed]);
-
-  // Load toolbar collapsed preference on init
   useEffect(() => {
-    if (isMobile) {
-      const savedPreference = localStorage.getItem("toolbarCollapsed");
-      if (savedPreference !== null) {
-        setIsToolbarCollapsed(savedPreference === "true");
-      }
+    onTextChangeRef.current = onTextChange;
+  }, [onTextChange]);
+
+  useEffect(() => {
+    onScrollRef.current = onScroll;
+  }, [onScroll]);
+
+  useEffect(() => {
+    onEditorReadyRef.current = onEditorReady;
+  }, [onEditorReady]);
+
+  useEffect(() => {
+    editorViewRefRef.current = editorViewRef;
+    if (editorViewRef && localViewRef.current) {
+      editorViewRef.current = localViewRef.current;
     }
-  }, [isMobile]);
+  }, [editorViewRef]);
 
   // Memoized text change handler to prevent unnecessary re-renders
-  const handleDocChange = useCallback((newText) => {
+  const handleDocChange = useCallback((newText: string) => {
     // Prevent infinite loops
     if (
       isUpdatingRef.current || newText === contentRef.current ||
@@ -112,9 +133,9 @@ export default function CodeMirrorEditor({
     contentRef.current = newText;
 
     // Immediately pass the changes to the parent - no debouncing here
-    onTextChange(newText);
+    onTextChangeRef.current(newText);
     setEditStatus("editing");
-  }, [onTextChange, setEditStatus]);
+  }, [setEditStatus]);
 
   // Initialize CodeMirror editor
   useEffect(() => {
@@ -122,14 +143,14 @@ export default function CodeMirrorEditor({
 
     // Create editor extensions
     const extensions = createMarkdownExtensions(
-      isDarkMode,
+      initialIsDarkModeRef.current,
       handleDocChange,
-      onScroll,
+      (percentage) => onScrollRef.current?.(percentage),
     );
 
     // Create editor state
     const state = EditorState.create({
-      doc: markdownText,
+      doc: initialMarkdownTextRef.current,
       extensions,
     });
 
@@ -137,22 +158,22 @@ export default function CodeMirrorEditor({
     const view = new EditorView({
       state,
       parent: editorRef.current,
-    });
+    }) as ScrollableEditorView;
 
     localViewRef.current = view;
-    if (editorViewRef) {
-      editorViewRef.current = view;
+    if (editorViewRefRef.current) {
+      editorViewRefRef.current.current = view;
     }
 
     // Add scrollToPercentage method to the view
-    view.scrollToPercentage = (percentage) => {
+    view.scrollToPercentage = (percentage: number) => {
       const { scrollHeight, clientHeight } = view.scrollDOM;
       const scrollTop = percentage * (scrollHeight - clientHeight);
       view.scrollDOM.scrollTop = scrollTop;
     };
 
     // Set a small delay before restoring cursor position to ensure the editor is fully initialized
-    setTimeout(() => {
+    const readyTimer = setTimeout(() => {
       try {
         // Restore cursor position if available
         const savedPositionData = localStorage.getItem("lastCursorPosition");
@@ -189,20 +210,21 @@ export default function CodeMirrorEditor({
       initializationCompleteRef.current = true;
 
       // Notify parent component that editor is ready
-      if (onEditorReady) {
-        onEditorReady();
+      if (onEditorReadyRef.current) {
+        onEditorReadyRef.current();
       }
     }, 200);
 
     return () => {
+      clearTimeout(readyTimer);
       view.destroy();
       localViewRef.current = null;
-      if (editorViewRef) {
-        editorViewRef.current = null;
+      if (editorViewRefRef.current?.current === view) {
+        editorViewRefRef.current.current = null;
       }
       initializationCompleteRef.current = false;
     };
-  }, []);
+  }, [handleDocChange]);
 
   // Update theme when dark mode changes - wrapped in useCallback to optimize performance
   useEffect(() => {
@@ -214,19 +236,6 @@ export default function CodeMirrorEditor({
       });
     }
   }, [isDarkMode]);
-
-  // On mobile, adjust the editor's padding to make room for the bottom toolbar
-  useEffect(() => {
-    if (localViewRef.current && isMobile) {
-      const editorDom = localViewRef.current.dom;
-      // Adjust padding based on toolbar collapsed state
-      editorDom.style.paddingBottom = isToolbarCollapsed ? "40px" : "80px";
-    }
-  }, [isMobile, isToolbarCollapsed]);
-
-  // Track active typing to prevent cursor position restoration during typing
-  const isActivelyTypingRef = useRef(false);
-  const typingTimeoutRef = useRef(null);
 
   // Create a function to mark the user as actively typing
   const markAsActivelyTyping = useCallback(() => {
@@ -368,76 +377,8 @@ export default function CodeMirrorEditor({
     };
   }, []);
 
-  // NEW: Add keyboard detection using visualViewport API
-  useEffect(() => {
-    if (!isMobile) return;
-
-    // Function to adjust toolbar position based on viewport changes
-    const handleViewportChange = () => {
-      if (!globalThis.visualViewport) return;
-
-      const viewportHeight = globalThis.visualViewport.height;
-      const windowHeight = globalThis.innerHeight;
-
-      // If viewport height is significantly less than window height, keyboard is likely visible
-      const isKeyboardVisible = viewportHeight < windowHeight * 0.8;
-
-      if (toolbarRef.current) {
-        if (isKeyboardVisible) {
-          // Keyboard is visible, position toolbar above it
-          const keyboardHeight = windowHeight - viewportHeight + 10;
-          toolbarRef.current.style.bottom = `${keyboardHeight}px`;
-          setKeyboardVisible(true);
-        } else {
-          // Keyboard is hidden, reset toolbar position
-          toolbarRef.current.style.bottom = "1.25rem"; // Original bottom position
-          setKeyboardVisible(false);
-        }
-      }
-    };
-
-    // Listen for viewport changes
-    if (globalThis.visualViewport) {
-      globalThis.visualViewport.addEventListener(
-        "resize",
-        handleViewportChange,
-      );
-      globalThis.visualViewport.addEventListener(
-        "scroll",
-        handleViewportChange,
-      );
-    }
-
-    // Also listen for focus events on the editor to detect when keyboard might appear
-    const handleFocus = () => {
-      // Small delay to let the keyboard appear first
-      setTimeout(handleViewportChange, 300);
-    };
-
-    if (localViewRef.current) {
-      localViewRef.current.dom.addEventListener("focus", handleFocus);
-    }
-
-    return () => {
-      if (globalThis.visualViewport) {
-        globalThis.visualViewport.removeEventListener(
-          "resize",
-          handleViewportChange,
-        );
-        globalThis.visualViewport.removeEventListener(
-          "scroll",
-          handleViewportChange,
-        );
-      }
-
-      if (localViewRef.current) {
-        localViewRef.current.dom.removeEventListener("focus", handleFocus);
-      }
-    };
-  }, [isMobile]);
-
   // Formatting functions - memoized with useCallback
-  const formatText = useCallback((startChars, endChars = "") => {
+  const formatText = useCallback((startChars: string, endChars = "") => {
     if (!localViewRef.current || !initializationCompleteRef.current) return;
 
     const { state, dispatch } = localViewRef.current;
@@ -475,7 +416,7 @@ export default function CodeMirrorEditor({
   }, []);
 
   // Multi-line formatting (for lists, etc.)
-  const formatMultiLine = useCallback((linePrefix) => {
+  const formatMultiLine = useCallback((linePrefix: string) => {
     if (!localViewRef.current || !initializationCompleteRef.current) return;
 
     const { state, dispatch } = localViewRef.current;
@@ -709,191 +650,6 @@ export default function CodeMirrorEditor({
               {isPreviewVisible ? <PanelRightClose /> : <PanelRight />}
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Mobile Toolbar with Chevron for collapsing/expanding */}
-      {isEditorReady && isMobile && (
-        <div
-          ref={toolbarRef}
-          className={`md:hidden fixed left-5 right-5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md z-50 transition-all duration-200 ${
-            keyboardVisible ? "pb-2" : "bottom-5"
-          }`}
-          style={{
-            transitionProperty: "bottom, transform",
-            willChange: "bottom, transform",
-          }}
-        >
-          {/* Top bar with title/indicator and chevron */}
-          <div className="flex justify-between items-center px-3 py-1 border-b border-neutral-200 dark:border-neutral-700">
-            <span className="text-xs text-neutral-500 dark:text-neutral-400">
-              {isToolbarCollapsed ? "Format" : "Formatting Tools"}
-            </span>
-            <button
-              type="button"
-              className="p-1 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
-              onClick={toggleToolbar}
-            >
-              {isToolbarCollapsed
-                ? <FaChevronUp size={14} />
-                : <FaChevronDown size={14} />}
-            </button>
-          </div>
-
-          {/* Horizontally scrollable toolbar - conditionally rendered based on collapsed state */}
-          {!isToolbarCollapsed && (
-            <div
-              ref={toolbarScrollRef}
-              className="flex items-center overflow-x-auto py-2 px-1 scrollbar-hide"
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              {/* First group - Common formatting options */}
-              <div className="flex space-x-1 px-2">
-                <button
-                  type="button"
-                  onClick={handleBold}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Bold"
-                >
-                  <FaBold size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleItalic}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Italic"
-                >
-                  <FaItalic size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleHeading}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Heading"
-                >
-                  <FaHeading size={18} />
-                </button>
-              </div>
-
-              {/* Separator */}
-              <div className="h-10 px-[1px] rounded-xs bg-neutral-100 dark:bg-neutral-700 mx-2">
-              </div>
-
-              {/* Second group - Lists */}
-              <div className="flex space-x-1 px-2">
-                <button
-                  type="button"
-                  onClick={handleUnorderedList}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Bullet List"
-                >
-                  <FaListUl size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOrderedList}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Numbered List"
-                >
-                  <FaListOl size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCheckbox}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Checkbox"
-                >
-                  <FaCheckSquare size={18} />
-                </button>
-              </div>
-
-              {/* Separator */}
-              <div className="h-10 px-[1px] rounded-xs bg-neutral-100 dark:bg-neutral-700 mx-2">
-              </div>
-
-              {/* Third group - Links and media */}
-              <div className="flex space-x-1 px-2">
-                <button
-                  type="button"
-                  onClick={handleLink}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Link"
-                >
-                  <FaLink size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImage}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Image"
-                >
-                  <FaImage size={18} />
-                </button>
-              </div>
-
-              {/* Separator */}
-              <div className="h-10 px-[1px] rounded-xs bg-neutral-100 dark:bg-neutral-700 mx-2">
-              </div>
-
-              {/* Fourth group - Code, quotes, tables */}
-              <div className="flex space-x-1 px-2">
-                <button
-                  type="button"
-                  onClick={handleCode}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Code Block"
-                >
-                  <FaCode size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleQuote}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Quote"
-                >
-                  <FaQuoteRight size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleTable}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Table"
-                >
-                  <FaTable size={18} />
-                </button>
-              </div>
-              <div className="flex space-x-1 px-2">
-                <button
-                  type="button"
-                  onClick={handleCode}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Code Block"
-                >
-                  <FaCode size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleQuote}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Quote"
-                >
-                  <FaQuoteRight size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleTable}
-                  className="p-2 min-w-[44px] flex flex-col items-center text-neutral-800 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                  title="Table"
-                >
-                  <FaTable size={18} />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

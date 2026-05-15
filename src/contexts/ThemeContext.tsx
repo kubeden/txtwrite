@@ -1,23 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-
-type Theme = "light" | "dark";
-
-interface ThemeContextValue {
-  theme: Theme;
-  resolvedTheme: Theme;
-  setTheme: (value: Theme) => void;
-  toggleTheme: () => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+import { type ReactNode, useEffect, useState } from "react";
+import { type Theme, ThemeContext } from "./themeContext.ts";
 
 const getInitialTheme = (): Theme => {
   if (typeof window === "undefined") {
@@ -76,12 +60,4 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme(): ThemeContextValue {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
 }

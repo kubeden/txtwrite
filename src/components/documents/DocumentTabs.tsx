@@ -4,6 +4,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type RefObject,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -31,7 +32,7 @@ interface DocumentTabsProps {
     currentTitle: string,
   ) => void;
   saveEditedTitle: () => void;
-  titleInputRef: RefObject<HTMLInputElement>;
+  titleInputRef: RefObject<HTMLInputElement | null>;
   handleTitleKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
 }
 
@@ -58,7 +59,7 @@ export default function DocumentTabs({
   const [operationInProgress, setOperationInProgress] = useState(false);
 
   // Check scroll position and update arrow visibility for desktop
-  const checkScrollPosition = () => {
+  const checkScrollPosition = useCallback(() => {
     if (!fileTabsRef.current) return;
 
     const tabsContainer = fileTabsRef.current;
@@ -83,10 +84,10 @@ export default function DocumentTabs({
       Math.floor(scrollWidth - (scrollLeft + clientWidth)) > 2;
 
     setShowRightArrow(hasMoreToScroll);
-  };
+  }, [documentTabs.length]);
 
   // Check scroll position for mobile tabs
-  const checkMobileScrollPosition = () => {
+  const checkMobileScrollPosition = useCallback(() => {
     if (!mobileTabsRef.current) return;
 
     const tabsContainer = mobileTabsRef.current;
@@ -99,7 +100,7 @@ export default function DocumentTabs({
     const hasMoreToScroll =
       Math.floor(scrollWidth - (scrollLeft + clientWidth)) > 2;
     setMobileRightArrow(hasMoreToScroll);
-  };
+  }, []);
 
   // Initialization of scroll indicators
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function DocumentTabs({
     return () => {
       timers.forEach((timer) => clearTimeout(timer));
     };
-  }, [documentTabs.length]);
+  }, [checkMobileScrollPosition, checkScrollPosition, documentTabs.length]);
 
   // Scroll tabs with buttons
   const scrollTabs = (direction: ScrollDirection, isMobile = false) => {

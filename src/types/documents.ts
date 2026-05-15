@@ -11,11 +11,21 @@ export interface DocumentRecord {
   last_synced_at: string;
   metadata: Record<string, unknown>;
   folder_id: string;
+  sort_order?: number;
 }
 
 export interface DocumentTab {
   id: string;
   title: string;
+}
+
+export interface FileSystemItem {
+  id: string;
+  name: string;
+  type: "folder" | "markdown" | string;
+  children?: FileSystemItem[];
+  documentRef?: string;
+  parentId?: string | null;
 }
 
 export interface DocumentVersion {

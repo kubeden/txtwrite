@@ -1,6 +1,6 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, type Extension } from "@codemirror/state";
 import {
   EditorView,
   highlightActiveLineGutter,
@@ -169,12 +169,12 @@ const createFormattingKeymap = (() => {
 })();
 
 // Debounce helper for scroll events
-function debounce<T extends (...args: unknown[]) => void>(
-  fn: T,
+function debounce<Args extends unknown[]>(
+  fn: (...args: Args) => void,
   delay: number,
-): (...args: Parameters<T>) => void {
+): (...args: Args) => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  return (...args: Parameters<T>) => {
+  return (...args: Args) => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       fn(...args);
@@ -241,15 +241,4 @@ export const createMarkdownExtensions = (
     }),
     EditorView.lineWrapping,
   ];
-};
-
-// Create an initial editor state
-const _createEditorState = (
-  initialContent: string,
-  extensions: Extension[],
-): EditorState => {
-  return EditorState.create({
-    doc: initialContent,
-    extensions,
-  });
 };

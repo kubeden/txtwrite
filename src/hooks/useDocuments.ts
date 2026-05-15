@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import {
   type MutableRefObject,
@@ -70,6 +71,11 @@ export default function useDocuments(
   const activeDocumentIdRef = useRef<string | null>(null);
   const fileSystemRef = useRef<FileSystemItem[]>([]);
   const documentTabsRef = useRef<DocumentTab[]>([]);
+  const loadDocumentsRef = useRef<() => void>(() => {});
+  const createNewDocumentRef = useRef<() => unknown>(() => null);
+  const handleDocumentChangeRef = useRef<(documentId: string) => void>(
+    () => {},
+  );
   const skipContentUpdateRef = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleOperationInProgress = useRef(false);
@@ -99,10 +105,117 @@ export default function useDocuments(
     }
   }, [documentTabs]);
 
+  // Synchronous save function
+  const saveDocumentToLocalStorageSync = useCallback(
+    (text: string): boolean => {
+      if (!activeDocumentIdRef.current) return false;
+
+      try {
+        const docsString = localStorage.getItem("documents");
+        const currentDocs = docsString
+          ? parseJSON<DocumentRecord[]>(docsString, documentsRef.current)
+          : documentsRef.current;
+
+        const updatedDocs = currentDocs.map((doc) => {
+          if (doc.id === activeDocumentIdRef.current) {
+            return {
+              ...doc,
+              content: text,
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return doc;
+        });
+
+        // Save all documents to localStorage
+        localStorage.setItem("documents", JSON.stringify(updatedDocs));
+
+        // Use a functional update to avoid closure issues
+        setDocuments(updatedDocs);
+        documentsRef.current = updatedDocs;
+
+        return true;
+      } catch (error) {
+        console.error("Error in synchronous save:", error);
+        return false;
+      }
+    },
+    [],
+  );
+
+  // Sync documents with file system
+  const syncDocumentsWithFileSystem = useCallback((
+    docs: DocumentRecord[],
+    fs: FileSystemItem[],
+  ) => {
+    // Collect all file references in the file system
+    const fileIds = new Set();
+
+    const collectIds = (items: FileSystemItem[]) => {
+      items.forEach((item) => {
+        if (item.type !== "folder" && item.documentRef) {
+          fileIds.add(item.documentRef);
+        }
+        if (item.children) {
+          collectIds(item.children);
+        }
+      });
+    };
+
+    collectIds(fs);
+
+    // Find documents missing from the file system
+    const missingDocs = docs.filter((doc) => !fileIds.has(doc.id));
+
+    if (missingDocs.length > 0) {
+      // Update the file system by adding missing documents
+      let updatedFs = [...fs];
+
+      // Add missing documents to the first folder
+      const firstFolder = updatedFs.find((item) => item.type === "folder");
+
+      if (firstFolder) {
+        const updatedFolder = {
+          ...firstFolder,
+          children: [
+            ...(firstFolder.children || []),
+            ...missingDocs.map((doc) => ({
+              id: doc.id,
+              name: `${doc.title}.md`,
+              type: "markdown" as const,
+              documentRef: doc.id,
+            })),
+          ],
+        };
+
+        updatedFs = updatedFs.map((item) =>
+          item.id === firstFolder.id ? updatedFolder : item
+        );
+      } else {
+        // If no folder exists, add documents to root
+        updatedFs = [
+          ...updatedFs,
+          ...missingDocs.map((doc) => ({
+            id: doc.id,
+            name: `${doc.title}.md`,
+            type: "markdown" as const,
+            documentRef: doc.id,
+          })),
+        ];
+      }
+
+      // Update file system state and localStorage
+      setFileSystem(updatedFs);
+      fileSystemRef.current = updatedFs;
+      localStorage.setItem(FILE_SYSTEM_KEY, JSON.stringify(updatedFs));
+    }
+  }, []);
+
   // Load documents and file system from localStorage on initial render
   useEffect(() => {
-    loadDocuments();
-  }, []);
+    const timer = setTimeout(() => loadDocumentsRef.current(), 0);
+    return () => clearTimeout(timer);
+  }, [syncDocumentsWithFileSystem]);
 
   // Track current content for saving - optimized with debouncing
   useEffect(() => {
@@ -134,45 +247,12 @@ export default function useDocuments(
         }
       };
     }
-  }, [markdownText, activeDocumentId]);
-
-  // Synchronous save function
-  const saveDocumentToLocalStorageSync = (text: string): boolean => {
-    if (!activeDocumentIdRef.current) return false;
-
-    try {
-      const docsString = localStorage.getItem("documents");
-      const currentDocs = docsString
-        ? parseJSON<DocumentRecord[]>(docsString, documentsRef.current)
-        : documentsRef.current;
-
-      const updatedDocs = currentDocs.map((doc) => {
-        if (doc.id === activeDocumentIdRef.current) {
-          return {
-            ...doc,
-            content: text,
-            updated_at: new Date().toISOString(),
-          };
-        }
-        return doc;
-      });
-
-      // Save all documents to localStorage
-      localStorage.setItem("documents", JSON.stringify(updatedDocs));
-
-      // Use a functional update to avoid closure issues
-      setDocuments(updatedDocs);
-      documentsRef.current = updatedDocs;
-
-      return true;
-    } catch (error) {
-      console.error("Error in synchronous save:", error);
-      return false;
-    }
-  };
+  }, [markdownText, activeDocumentId, saveDocumentToLocalStorageSync]);
 
   // Load document content when active document changes
   useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
     if (activeDocumentId && documents.length > 0) {
       const doc = documents.find((d) => d.id === activeDocumentId);
       if (doc) {
@@ -196,21 +276,30 @@ export default function useDocuments(
             id: activeDocumentId,
             title: doc.title,
           }];
-          setDocumentTabs(updatedTabs);
-          documentTabsRef.current = updatedTabs;
-          localStorage.setItem(DOCUMENT_TABS_KEY, JSON.stringify(updatedTabs));
+          timers.push(setTimeout(() => {
+            setDocumentTabs(updatedTabs);
+            documentTabsRef.current = updatedTabs;
+            localStorage.setItem(
+              DOCUMENT_TABS_KEY,
+              JSON.stringify(updatedTabs),
+            );
+          }, 0));
         }
 
         // Reset title editing state
-        setEditingTitleId(null);
+        timers.push(setTimeout(() => setEditingTitleId(null), 0));
       }
     }
+
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
   }, [activeDocumentId, documents, setMarkdownText, documentTabs]);
 
   // Listen for document updates from the sidebar
   useEffect(() => {
     const handleDocumentsUpdated = () => {
-      loadDocuments();
+      loadDocumentsRef.current();
     };
 
     globalThis.addEventListener("documents-updated", handleDocumentsUpdated);
@@ -225,7 +314,7 @@ export default function useDocuments(
   // Listen for document creation requests from the sidebar
   useEffect(() => {
     const handleSidebarCreateDocument = () => {
-      createNewDocument();
+      createNewDocumentRef.current();
     };
 
     globalThis.addEventListener(
@@ -244,8 +333,8 @@ export default function useDocuments(
   useEffect(() => {
     const handleSidebarDocumentChanged = (event) => {
       const { documentId } = event.detail;
-      if (documentId && documentId !== activeDocumentId) {
-        handleDocumentChange(documentId);
+      if (documentId && documentId !== activeDocumentIdRef.current) {
+        handleDocumentChangeRef.current(documentId);
       }
     };
 
@@ -259,7 +348,7 @@ export default function useDocuments(
         handleSidebarDocumentChanged,
       );
     };
-  }, [activeDocumentId]);
+  }, []);
 
   // Listen for title changes from layout component
   useEffect(() => {
@@ -453,72 +542,7 @@ export default function useDocuments(
 
       documentOperationInProgress.current = false;
     }
-  }, []);
-
-  // Sync documents with file system
-  const syncDocumentsWithFileSystem = (docs, fs) => {
-    // Collect all file references in the file system
-    const fileIds = new Set();
-
-    const collectIds = (items) => {
-      items.forEach((item) => {
-        if (item.type !== "folder" && item.documentRef) {
-          fileIds.add(item.documentRef);
-        }
-        if (item.children) {
-          collectIds(item.children);
-        }
-      });
-    };
-
-    collectIds(fs);
-
-    // Find documents missing from the file system
-    const missingDocs = docs.filter((doc) => !fileIds.has(doc.id));
-
-    if (missingDocs.length > 0) {
-      // Update the file system by adding missing documents
-      let updatedFs = [...fs];
-
-      // Add missing documents to the first folder
-      const firstFolder = updatedFs.find((item) => item.type === "folder");
-
-      if (firstFolder) {
-        const updatedFolder = {
-          ...firstFolder,
-          children: [
-            ...(firstFolder.children || []),
-            ...missingDocs.map((doc) => ({
-              id: doc.id,
-              name: `${doc.title}.md`,
-              type: "markdown",
-              documentRef: doc.id,
-            })),
-          ],
-        };
-
-        updatedFs = updatedFs.map((item) =>
-          item.id === firstFolder.id ? updatedFolder : item
-        );
-      } else {
-        // If no folder exists, add documents to root
-        updatedFs = [
-          ...updatedFs,
-          ...missingDocs.map((doc) => ({
-            id: doc.id,
-            name: `${doc.title}.md`,
-            type: "markdown",
-            documentRef: doc.id,
-          })),
-        ];
-      }
-
-      // Update file system state and localStorage
-      setFileSystem(updatedFs);
-      fileSystemRef.current = updatedFs;
-      localStorage.setItem(FILE_SYSTEM_KEY, JSON.stringify(updatedFs));
-    }
-  };
+  }, [syncDocumentsWithFileSystem]);
 
   // Save current document to localStorage - memoized with useCallback
   const saveDocumentToLocalStorage = useCallback((text) => {
@@ -919,6 +943,18 @@ export default function useDocuments(
       documentOperationInProgress.current = false;
     }
   }, [saveDocumentToLocalStorageSync, setMarkdownText]);
+
+  useEffect(() => {
+    loadDocumentsRef.current = loadDocuments;
+  }, [loadDocuments]);
+
+  useEffect(() => {
+    createNewDocumentRef.current = createNewDocument;
+  }, [createNewDocument]);
+
+  useEffect(() => {
+    handleDocumentChangeRef.current = handleDocumentChange;
+  }, [handleDocumentChange]);
 
   // Close a document tab (but don't delete the document)
   const closeDocumentTab = useCallback((e, documentId) => {

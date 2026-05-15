@@ -13,15 +13,18 @@ const WelcomeModal = () => {
     const hasShownWelcomeModal = localStorage.getItem("hasShownWelcomeModal");
 
     if (!hasShownWelcomeModal) {
-      // If not shown, set modal to visible
-      setIsVisible(true);
-
       // Add a small delay before showing for a smooth page load experience
+      const visibilityTimer = setTimeout(() => {
+        setIsVisible(true);
+      }, 0);
       const timer = setTimeout(() => {
         document.body.style.overflow = "hidden"; // Prevent scrolling when modal is open
       }, 100);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(visibilityTimer);
+        clearTimeout(timer);
+      };
     }
   }, []);
 

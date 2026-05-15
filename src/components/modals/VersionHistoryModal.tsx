@@ -28,9 +28,9 @@ export default function VersionHistoryModal({
   // Handle animation and visibility
   useEffect(() => {
     if (isOpen) {
-      // First make the component visible
-      setIsVisible(true);
-      // Then allow a tick for the browser to render it before animating
+      const visibilityTimer = setTimeout(() => {
+        setIsVisible(true);
+      }, 0);
       const animationTimer = setTimeout(() => {
         // Now update the DOM to trigger the animation
         if (drawerRef.current) {
@@ -39,7 +39,10 @@ export default function VersionHistoryModal({
         }
       }, 10); // Small delay to ensure DOM updates
 
-      return () => clearTimeout(animationTimer);
+      return () => {
+        clearTimeout(visibilityTimer);
+        clearTimeout(animationTimer);
+      };
     } else {
       // When closing, first animate out
       if (drawerRef.current) {

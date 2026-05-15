@@ -14,17 +14,98 @@ import remarkReact from "remark-react";
 import { unified } from "unified";
 import "../../markdown-styles.css";
 
+const sanitizeUrl = (
+  value: unknown,
+  allowedProtocols: Set<string>,
+  allowRelative = true,
+) => {
+  if (typeof value !== "string") return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const parsed = new URL(trimmed, "https://txtwrite.local");
+    const isRelative = !/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed);
+
+    if (isRelative && allowRelative) return trimmed;
+    if (allowedProtocols.has(parsed.protocol)) return trimmed;
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+};
+
+const safeLinkProtocols = new Set(["http:", "https:", "mailto:"]);
+const safeImageProtocols = new Set(["http:", "https:"]);
+const safeDataImagePattern =
+  /^data:image\/(?:avif|gif|jpe?g|png|webp);base64,[a-z0-9+/]+=*$/i;
+
+const sanitizeImageUrl = (value: unknown) => {
+  const safeNetworkSrc = sanitizeUrl(value, safeImageProtocols);
+  if (safeNetworkSrc) return safeNetworkSrc;
+
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return safeDataImagePattern.test(trimmed) ? trimmed : undefined;
+};
+
+const SafeLink = ({
+  href,
+  children,
+  ...props
+}: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+  const safeHref = sanitizeUrl(href, safeLinkProtocols);
+  const isExternal = safeHref?.startsWith("http://") ||
+    safeHref?.startsWith("https://");
+
+  return (
+    <a
+      {...props}
+      href={safeHref}
+      rel={isExternal ? "noopener noreferrer" : undefined}
+      target={isExternal ? "_blank" : undefined}
+    >
+      {children}
+    </a>
+  );
+};
+
+const SafeImage = ({
+  src,
+  alt,
+  ...props
+}: React.ImgHTMLAttributes<HTMLImageElement>) => {
+  const safeSrc = sanitizeImageUrl(src);
+  if (!safeSrc) return null;
+
+  return (
+    <img
+      {...props}
+      src={safeSrc}
+      alt={alt ?? ""}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  );
+};
+
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
-  // @ts-ignore - remark-react typings are not compatible with unified@11 yet
+  // @ts-expect-error - remark-react typings are not compatible with unified@11 yet
   .use(remarkReact, {
     createElement: React.createElement,
+    remarkReactComponents: {
+      a: SafeLink,
+      img: SafeImage,
+    },
   });
 
 interface MarkdownPreviewProps {
   markdownText: string;
-  previewRef: RefObject<HTMLDivElement>;
+  previewRef: RefObject<HTMLDivElement | null>;
   handlePreviewScroll: UIEventHandler<HTMLDivElement>;
   isMobile?: boolean;
 }
@@ -33,7 +114,6 @@ export default function MarkdownPreview({
   markdownText,
   previewRef,
   handlePreviewScroll,
-  isMobile: _isMobile, // reserved for future responsive tweaks
 }: MarkdownPreviewProps) {
   const [content, setContent] = useState<ReactNode>(null);
 

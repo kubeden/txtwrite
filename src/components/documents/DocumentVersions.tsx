@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -25,17 +25,13 @@ export default function DocumentVersions({
   restoreVersion,
 }: DocumentVersionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [confirmingVersion, setConfirmingVersion] = useState<
     DocumentVersion | null
   >(null);
 
-  useEffect(() => {
-    if (documentId && isOpen) {
-      const docVersions = getVersions(documentId);
-      setVersions(docVersions);
-    }
-  }, [documentId, isOpen, getVersions]);
+  const versions = useMemo(() => {
+    return documentId && isOpen ? getVersions(documentId) : [];
+  }, [documentId, getVersions, isOpen]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

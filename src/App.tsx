@@ -1,13 +1,13 @@
-// @ts-check
 import { useCallback, useEffect, useRef, useState } from "react";
-import { EditorView } from "@codemirror/view";
 import DashboardLayout from "./components/layout/DashboardLayout.tsx";
 import DocumentTabs from "./components/documents/DocumentTabs.tsx";
 import CodeMirrorEditor from "./components/editor/CodeMirrorEditor.tsx";
+import MobileFormatToolbar from "./components/editor/MobileFormatToolbar.tsx";
 import MarkdownPreview from "./components/preview/MarkdownPreview.tsx";
 import StatusBar from "./components/editor/StatusBar.tsx";
 import useDocuments from "./hooks/useDocuments.ts";
-import { useTheme } from "./contexts/ThemeContext.tsx";
+import { useTheme } from "./contexts/useTheme.ts";
+import type { ScrollableEditorView } from "./types/editor.ts";
 
 export default function App() {
   const [markdownText, setMarkdownText] = useState("# Loading...");
@@ -15,13 +15,16 @@ export default function App() {
   const [activeView, setActiveView] = useState<"editor" | "preview">("editor");
   const [isMobile, setIsMobile] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-  const [isPreviewVisible, setIsPreviewVisible] = useState(true);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(() => {
+    const savedPreference = localStorage.getItem("previewVisible");
+    return savedPreference === null ? true : savedPreference === "true";
+  });
 
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
 
   const previewRef = useRef<HTMLDivElement | null>(null);
-  const editorViewRef = useRef<EditorView | null>(null);
+  const editorViewRef = useRef<ScrollableEditorView | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isEditorScrolling, setIsEditorScrolling] = useState(false);
@@ -55,28 +58,40 @@ export default function App() {
     });
   }, []);
 
-  useEffect(() => {
-    const savedPreference = localStorage.getItem("previewVisible");
-    if (savedPreference !== null) {
-      setIsPreviewVisible(savedPreference === "true");
-    }
-  }, []);
-
-  const toggleView = () => {
-    setActiveView((current) => (current === "editor" ? "preview" : "editor"));
-  };
-
-  const getContentHeight = () => {
-    if (isMobile) {
-      return "h-[calc(100%-60px-20px)]";
-    }
-    return "h-[calc(100%-120px)]";
-  };
-
   const getEditorWidth = () => {
     if (isMobile) return "w-full";
     return isPreviewVisible ? "w-1/2" : "w-full";
   };
+
+  useEffect(() => {
+    const updateViewportSize = () => {
+      const viewport = globalThis.visualViewport;
+      const height = viewport?.height ?? globalThis.innerHeight;
+      document.documentElement.style.setProperty(
+        "--app-viewport-height",
+        `${height}px`,
+      );
+    };
+
+    updateViewportSize();
+    globalThis.addEventListener("resize", updateViewportSize);
+    globalThis.addEventListener("orientationchange", updateViewportSize);
+    globalThis.visualViewport?.addEventListener("resize", updateViewportSize);
+    globalThis.visualViewport?.addEventListener("scroll", updateViewportSize);
+
+    return () => {
+      globalThis.removeEventListener("resize", updateViewportSize);
+      globalThis.removeEventListener("orientationchange", updateViewportSize);
+      globalThis.visualViewport?.removeEventListener(
+        "resize",
+        updateViewportSize,
+      );
+      globalThis.visualViewport?.removeEventListener(
+        "scroll",
+        updateViewportSize,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -93,7 +108,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (activeDocumentId && getVersions && restoreVersion) {
+    if (activeDocumentId) {
       globalThis.dispatchEvent(
         new CustomEvent("version-functions-ready", {
           detail: { getVersions, restoreVersion },
@@ -242,6 +257,29 @@ export default function App() {
   }, [activeDocumentId]);
 
   useEffect(() => {
+    const handleToggleMobilePreview = () => {
+      if (isMobile) {
+        setIsPreviewVisible(true);
+        setActiveView((current) => current === "editor" ? "preview" : "editor");
+      } else {
+        togglePreview();
+      }
+    };
+
+    globalThis.addEventListener(
+      "toggle-mobile-preview",
+      handleToggleMobilePreview,
+    );
+
+    return () => {
+      globalThis.removeEventListener(
+        "toggle-mobile-preview",
+        handleToggleMobilePreview,
+      );
+    };
+  }, [isMobile, togglePreview]);
+
+  useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -251,11 +289,10 @@ export default function App() {
 
   return (
     <DashboardLayout>
-      <div className="h-full flex flex-col overflow-hidden">
-        <div className="flex flex-col bg-neutral-100 dark:bg-neutral-900 h-full">
+      <div className="h-full min-h-0 flex flex-col overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col bg-neutral-100 dark:bg-neutral-900">
           <div className="w-full hidden md:flex">
             <DocumentTabs
-              documents={documents}
               documentTabs={documentTabs}
               activeDocumentId={activeDocumentId}
               handleDocumentChange={handleDocumentChange}
@@ -271,9 +308,7 @@ export default function App() {
             />
           </div>
 
-          <div
-            className={`flex md:flex-row flex-col overflow-hidden bg-neutral-100 dark:bg-neutral-900 ${getContentHeight()} md:h-[calc(100%-135px)]`}
-          >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-neutral-100 dark:bg-neutral-900 md:flex-row">
             <div
               className={`${
                 activeView === "editor" || !isMobile ? "flex" : "hidden"
@@ -305,68 +340,21 @@ export default function App() {
                   markdownText={markdownText}
                   previewRef={previewRef}
                   handlePreviewScroll={handlePreviewScroll}
-                  isMobile={isMobile}
                 />
               </div>
             )}
           </div>
+
+          <MobileFormatToolbar
+            editorViewRef={editorViewRef}
+            visible={isMobile && activeView === "editor"}
+          />
 
           <StatusBar
             markdownText={markdownText}
             editStatus={editStatus}
             getLineAndColumn={getLineAndColumn}
           />
-
-          {isMobile && (
-            <button
-              type="button"
-              onClick={toggleView}
-              className="md:hidden fixed bottom-[16vh] right-6 z-30 bg-neutral-200 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 text-white p-3 rounded-md"
-              aria-label={`Switch to ${
-                activeView === "editor" ? "preview" : "editor"
-              }`}
-            >
-              {activeView === "editor"
-                ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="#606060"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
-                )
-                : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="#606060"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                )}
-            </button>
-          )}
         </div>
       </div>
 

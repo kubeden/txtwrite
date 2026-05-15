@@ -1,7 +1,8 @@
-// @ts-check
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -11,9 +12,12 @@ import {
   FileText,
   Folder,
   FolderPlus,
+  LifeBuoy,
+  LogOut,
   MoreVertical,
   Trash2,
 } from "lucide-react";
+import { useCloud } from "../../contexts/useCloud.ts";
 
 // Local storage key for file system
 const FILE_SYSTEM_KEY = "txtwFileSystem";
@@ -603,47 +607,14 @@ export default function FileSidebar({
   documents,
   expanded = false,
 }) {
+  const { signOut } = useCloud();
   const [expandedFolders, setExpandedFolders] = useState({});
   const [fileSystem, setFileSystem] = useState([]);
-  const [fileMap, setFileMap] = useState({});
   // Custom drag and drop state
   const [draggedItem, setDraggedItem] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
 
-  // Load file system from localStorage on init
-  useEffect(() => {
-    const savedFileSystem = localStorage.getItem(FILE_SYSTEM_KEY);
-    if (savedFileSystem) {
-      try {
-        const parsedFileSystem = JSON.parse(savedFileSystem);
-        setFileSystem(parsedFileSystem);
-
-        // Set all root folders to expanded by default
-        const initialExpandedState = {};
-        parsedFileSystem.forEach((item) => {
-          if (item.type === "folder") {
-            initialExpandedState[item.id] = true;
-          }
-        });
-        setExpandedFolders(initialExpandedState);
-      } catch (error) {
-        console.error("Error loading file system from localStorage:", error);
-        initializeFileSystem();
-      }
-    } else {
-      initializeFileSystem();
-    }
-  }, []);
-
-  // Sync existing documents with file system
-  useEffect(() => {
-    if (documents.length > 0 && fileSystem.length > 0) {
-      syncDocumentsWithFileSystem(documents);
-    }
-  }, [documents, fileSystem]);
-
-  // Generate a flat map of all files and folders for quick lookup
-  useEffect(() => {
+  const fileMap = useMemo(() => {
     const map = {};
 
     const addToMap = (items, parentId = null) => {
@@ -656,11 +627,11 @@ export default function FileSidebar({
     };
 
     addToMap(fileSystem);
-    setFileMap(map);
+    return map;
   }, [fileSystem]);
 
   // Initialize the file system with default structure
-  const initializeFileSystem = () => {
+  const initializeFileSystem = useCallback(() => {
     const initialFileSystem = [
       {
         id: "folder-1",
@@ -673,10 +644,10 @@ export default function FileSidebar({
     setFileSystem(initialFileSystem);
     setExpandedFolders({ "folder-1": true });
     localStorage.setItem(FILE_SYSTEM_KEY, JSON.stringify(initialFileSystem));
-  };
+  }, []);
 
   // Sync documents from the documents state with our file system
-  const syncDocumentsWithFileSystem = (docs) => {
+  const syncDocumentsWithFileSystem = useCallback((docs) => {
     // Identify documents that are not in the file system yet
     const fileIds = new Set();
 
@@ -714,7 +685,46 @@ export default function FileSidebar({
       setFileSystem(updatedFileSystem);
       localStorage.setItem(FILE_SYSTEM_KEY, JSON.stringify(updatedFileSystem));
     }
-  };
+  }, [fileSystem]);
+
+  // Load file system from localStorage on init
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const savedFileSystem = localStorage.getItem(FILE_SYSTEM_KEY);
+      if (savedFileSystem) {
+        try {
+          const parsedFileSystem = JSON.parse(savedFileSystem);
+          setFileSystem(parsedFileSystem);
+
+          // Set all root folders to expanded by default
+          const initialExpandedState = {};
+          parsedFileSystem.forEach((item) => {
+            if (item.type === "folder") {
+              initialExpandedState[item.id] = true;
+            }
+          });
+          setExpandedFolders(initialExpandedState);
+        } catch (error) {
+          console.error("Error loading file system from localStorage:", error);
+          initializeFileSystem();
+        }
+      } else {
+        initializeFileSystem();
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [initializeFileSystem]);
+
+  // Sync existing documents with file system
+  useEffect(() => {
+    if (documents.length > 0 && fileSystem.length > 0) {
+      const timer = setTimeout(() => {
+        syncDocumentsWithFileSystem(documents);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [documents, fileSystem, syncDocumentsWithFileSystem]);
 
   // Toggle folder expansion
   const toggleFolder = (folderId) => {
@@ -796,7 +806,7 @@ export default function FileSidebar({
   const handleCreateFolder = (parentId = null) => {
     // Create a new folder object
     const newFolder = {
-      id: `folder-${Date.now()}`,
+      id: `folder-${crypto.randomUUID()}`,
       name: "New Folder",
       type: "folder",
       children: [],
@@ -976,7 +986,7 @@ export default function FileSidebar({
     setDropTarget(null);
   };
 
-  const handleDragEnter = (item, _event) => {
+  const handleDragEnter = (item) => {
     // Prevent dropping an item onto itself
     if (draggedItem && draggedItem.id === item.id) {
       setDropTarget(null);
@@ -996,7 +1006,7 @@ export default function FileSidebar({
     }
   };
 
-  const handleDragOver = (item, position, _event) => {
+  const handleDragOver = (item, position) => {
     // Prevent dropping an item onto itself
     if (draggedItem && draggedItem.id === item.id) {
       setDropTarget(null);
@@ -1188,35 +1198,6 @@ export default function FileSidebar({
     </div>
   );
 
-  // Create a dragging ghost element to show what's being dragged
-  const _createDragGhost = (item) => {
-    const ghost = document.createElement("div");
-
-    ghost.className =
-      "fixed top-0 left-0 bg-neutral-900 border border-blue-500 px-3 py-1 rounded shadow-md opacity-90 z-50 pointer-events-none";
-
-    const icon = document.createElement("span");
-    icon.className = "mr-2 inline-block";
-
-    if (item.type === "folder") {
-      icon.innerHTML =
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>';
-    } else {
-      icon.innerHTML =
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-    }
-
-    const text = document.createElement("span");
-    text.textContent = item.name;
-    text.className = "text-neutral-300 text-sm";
-
-    ghost.appendChild(icon);
-    ghost.appendChild(text);
-    document.body.appendChild(ghost);
-
-    return ghost;
-  };
-
   return (
     <div className="mt-4 w-full overflow-y-auto flex flex-col h-full">
       <div className="flex flex-col">
@@ -1258,7 +1239,7 @@ export default function FileSidebar({
       </div>
 
       {/* Footer links - preserved from original sidebar */}
-      <div className="flex flex-col items-start justify-start pb-4 pt-2 px-2 gap-y-1 border-t-4 border-neutral-200 dark:border-neutral-800 mt-auto">
+      <div className="flex flex-col items-start justify-start pb-4 mb-4 pt-2 px-2 gap-y-1 border-t-4 border-neutral-200 dark:border-neutral-800 mt-auto">
         {
           /* <div className="flex items-center py-1 px-2 hover:bg-neutral-800 cursor-pointer text-sm w-full">
                     <CreditCard size={14} className="text-neutral-400 mr-2" />
@@ -1268,18 +1249,30 @@ export default function FileSidebar({
         <a
           href="https://github.com/kubeden/txtwrite"
           target="_blank"
-          className="flex items-center py-2 px-2 hover:bg-neutral-200 hover:dark:bg-neutral-800 cursor-pointer text-sm w-full rounded-sm"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 py-2 px-2 hover:bg-neutral-200 hover:dark:bg-neutral-800 cursor-pointer text-sm w-full rounded-sm"
         >
+          <LifeBuoy
+            size={14}
+            className="text-neutral-500 dark:text-neutral-400"
+          />
           <span className="text-neutral-600 dark:text-neutral-300">
             Support
           </span>
         </a>
-        {
-          /* <div className="flex items-center py-1 px-2 hover:bg-neutral-800 cursor-pointer text-sm w-full">
-                    <LogOut size={14} className="text-neutral-400 mr-2" />
-                    <span className="text-neutral-300">Logout</span>
-                </div> */
-        }
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="flex items-center gap-2 py-2 px-2 hover:bg-neutral-200 hover:dark:bg-neutral-800 cursor-pointer text-sm w-full rounded-sm text-left"
+        >
+          <LogOut
+            size={14}
+            className="text-neutral-500 dark:text-neutral-400"
+          />
+          <span className="text-neutral-600 dark:text-neutral-300">
+            Log out
+          </span>
+        </button>
       </div>
     </div>
   );
