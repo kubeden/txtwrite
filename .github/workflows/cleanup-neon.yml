@@ -16,6 +16,9 @@ on:
       merge_sha:
         description: Optional merge commit SHA to record in the rollout annotation
         required: false
+      head_branch:
+        description: Optional PR head branch for manual Neon cleanup
+        required: false
 
 permissions:
   contents: read
@@ -53,7 +56,7 @@ jobs:
         if: github.event.pull_request.merged == true || inputs.merged == 'true'
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITOPS_TOKEN || github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/agent-status.mjs --stage productionStarted
 
@@ -87,7 +90,7 @@ jobs:
       - name: Say cleanup is starting
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITOPS_TOKEN || github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/agent-status.mjs --stage previewCleanup
 
@@ -97,7 +100,7 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref || inputs.head_branch }}
         run: node scripts/neon-preview.mjs delete
 
       - name: Cleanup GitOps preview
@@ -108,7 +111,7 @@ jobs:
       - name: Comment cleanup result
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITOPS_TOKEN || github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           if [ "${{ github.event.pull_request.merged == true || inputs.merged == 'true' }}" = "true" ]; then
