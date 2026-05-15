@@ -205,7 +205,8 @@ async function addNeonAuthTrustedDomain({ branchId, domain, authProvider }) {
       })
     });
   } catch (error) {
-    if (error.status === 409) return null;
+    const message = String(error.data?.message ?? error.message);
+    if (error.status === 409 || message.includes("DOMAIN_ALREADY_EXISTS")) return null;
     throw error;
   }
 }
