@@ -4,7 +4,8 @@ import { readJson } from "./lib/files.mjs";
 import { setOutput } from "./lib/output.mjs";
 
 function git(args, options = {}) {
-  return execFileSync("git", args, { encoding: "utf8", ...options }).trim();
+  const output = execFileSync("git", args, { encoding: "utf8", ...options });
+  return typeof output === "string" ? output.trim() : "";
 }
 
 const context = await readJson(".agent/runtime/issue-context.json");
