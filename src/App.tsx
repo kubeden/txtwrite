@@ -353,6 +353,7 @@ export default function App() {
           <StatusBar
             markdownText={markdownText}
             editStatus={editStatus}
+            documentCount={documents.length}
             getLineAndColumn={getLineAndColumn}
           />
         </div>

@@ -6,11 +6,13 @@ import { useCloud } from "../../contexts/useCloud.ts";
 interface StatusBarProps {
   markdownText: string;
   editStatus: "editing" | "saved";
+  documentCount: number;
   getLineAndColumn?: () => { line: number; column: number };
 }
 
 interface StatusBarViewProps {
   markdownText: string;
+  documentCount: number;
   line: number;
   column: number;
   syncEnabled: boolean;
@@ -21,6 +23,7 @@ interface StatusBarViewProps {
 
 function MobileStatusBar({
   markdownText,
+  documentCount,
   line,
   column,
   syncEnabled,
@@ -37,6 +40,13 @@ function MobileStatusBar({
               {markdownText.split(/\s+/).filter(Boolean).length}
             </span>{" "}
             Words
+          </span>
+          <span className="hidden sm:inline">/</span>
+          <span className="hidden sm:inline">
+            <span className="text-neutral-800 dark:text-neutral-500">
+              {documentCount}
+            </span>{" "}
+            Docs
           </span>
           <span className="hidden sm:inline">/</span>
           <span className="hidden sm:inline">
@@ -71,6 +81,7 @@ function MobileStatusBar({
 
 function DesktopStatusBar({
   markdownText,
+  documentCount,
   line,
   column,
   syncError,
@@ -93,6 +104,13 @@ function DesktopStatusBar({
               {markdownText.split(/\s+/).filter(Boolean).length}
             </span>{" "}
             Words
+          </span>
+          <span>/</span>
+          <span>
+            <span className="text-neutral-700 dark:text-neutral-600">
+              {documentCount}
+            </span>{" "}
+            Documents
           </span>
           <span>/</span>
           <span>LN</span>
@@ -126,6 +144,7 @@ function DesktopStatusBar({
 export default function StatusBar({
   markdownText,
   editStatus,
+  documentCount,
   getLineAndColumn,
 }: StatusBarProps) {
   const { line, column } = getLineAndColumn
@@ -162,6 +181,7 @@ export default function StatusBar({
 
   const viewProps: StatusBarViewProps = {
     markdownText,
+    documentCount,
     line,
     column,
     syncEnabled,

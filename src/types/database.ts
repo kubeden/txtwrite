@@ -53,6 +53,31 @@ export type Database = {
         };
         Relationships: [];
       };
+      document_counts: {
+        Row: {
+          document_id: string;
+          user_id: string;
+          document_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          document_id: string;
+          document_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          document_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_counts_document_id_fkey";
+            columns: ["document_id"];
+            referencedRelation: "documents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       document_versions: {
         Row: {
           id: string;
