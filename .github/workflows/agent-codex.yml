@@ -28,7 +28,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'issues' ||
-      (github.event_name == 'issue_comment' && !github.event.issue.pull_request)
+      github.event_name == 'issue_comment'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout base branch
@@ -58,8 +58,14 @@ jobs:
         run: echo "${{ steps.prepare.outputs.skip_reason }}"
 
       - name: Create work branch
-        if: steps.prepare.outputs.should_run == 'true'
+        if: steps.prepare.outputs.should_run == 'true' && steps.prepare.outputs.target_kind != 'pull_request'
         run: git switch -c "${{ steps.prepare.outputs.head_branch }}"
+
+      - name: Checkout pull request branch
+        if: steps.prepare.outputs.should_run == 'true' && steps.prepare.outputs.target_kind == 'pull_request'
+        run: |
+          git fetch origin "${{ steps.prepare.outputs.head_branch }}"
+          git switch -C "${{ steps.prepare.outputs.head_branch }}" "origin/${{ steps.prepare.outputs.head_branch }}"
 
       - name: Say I picked it up
         if: steps.prepare.outputs.should_run == 'true'
