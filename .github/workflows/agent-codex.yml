@@ -125,7 +125,6 @@ jobs:
           prompt-file: ${{ steps.prompt.outputs.prompt_file }}
           output-file: .agent/runtime/codex-final.md
           sandbox: workspace-write
-          codex-args: '["--skip-git-repo-check"]'
 
       - name: Run configured checks
         if: steps.prepare.outputs.should_run == 'true'
