@@ -4,6 +4,18 @@ on:
   pull_request_target:
     types: [closed]
     branches: [feat/neon-backend]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to release or clean up
+        required: true
+      merged:
+        description: Run the production deploy path before cleanup
+        required: true
+        default: "true"
+      merge_sha:
+        description: Optional merge commit SHA to record in the rollout annotation
+        required: false
 
 permissions:
   contents: read
@@ -14,7 +26,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     concurrency:
-      group: close-${{ github.event.pull_request.number }}
+      group: close-${{ github.event.pull_request.number || inputs.pr_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout release branch
@@ -28,24 +40,24 @@ jobs:
           node-version: "22"
 
       - name: Setup Deno
-        if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true || inputs.merged == 'true'
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
       - name: Setup Docker Buildx
-        if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true || inputs.merged == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Say production deploy is starting
-        if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true || inputs.merged == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/agent-status.mjs --stage productionStarted
 
       - name: Run production migration
-        if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true || inputs.merged == 'true'
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
@@ -62,11 +74,11 @@ jobs:
 
       - name: Deploy production
         id: production
-        if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true || inputs.merged == 'true'
         env:
           PROD_VITE_NEON_AUTH_URL: ${{ secrets.PROD_VITE_NEON_AUTH_URL }}
           PROD_VITE_NEON_DATA_API_URL: ${{ secrets.PROD_VITE_NEON_DATA_API_URL }}
-          PR_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || inputs.merge_sha }}
           ZOT_REGISTRY_USERNAME: ${{ secrets.ZOT_REGISTRY_USERNAME }}
           ZOT_REGISTRY_PASSWORD: ${{ secrets.ZOT_REGISTRY_PASSWORD }}
         run: node scripts/deploy-production-gitops.mjs
@@ -74,7 +86,7 @@ jobs:
       - name: Say cleanup is starting
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/agent-status.mjs --stage previewCleanup
 
       - name: Delete Neon preview branch
@@ -82,21 +94,21 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: node scripts/neon-preview.mjs delete
 
       - name: Cleanup GitOps preview
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/run-configured-command.mjs cleanup
 
       - name: Comment cleanup result
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
-          if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+          if [ "${{ github.event.pull_request.merged == true || inputs.merged == 'true' }}" = "true" ]; then
             body="Merged and deployed.
 
           Production: ${{ steps.production.outputs.production_url }}

@@ -170,8 +170,8 @@ const imagePlatform = process.env.PRODUCTION_IMAGE_PLATFORM ||
 const registryHost = imageRepository.split("/")[0];
 const mergeSha = (
   process.env.PR_MERGE_SHA ||
-  process.env.GITHUB_SHA ||
-  runQuiet("git", ["rev-parse", "HEAD"])
+  runQuiet("git", ["rev-parse", "HEAD"]) ||
+  process.env.GITHUB_SHA
 ).trim();
 const shortSha = mergeSha.slice(0, 7);
 const image = `${imageRepository}:${imageTag}`;
