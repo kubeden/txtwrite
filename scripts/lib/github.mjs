@@ -35,6 +35,11 @@ export async function fetchIssue(issueNumber) {
   return githubRequest(`/repos/${owner}/${repo}/issues/${issueNumber}`);
 }
 
+export async function fetchPullRequest(pullNumber) {
+  const { owner, repo } = repoContext();
+  return githubRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
+}
+
 export async function fetchIssueComments(issueNumber) {
   const { owner, repo } = repoContext();
   return githubRequest(`/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100`);

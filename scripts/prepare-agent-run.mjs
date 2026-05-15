@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { parseArgs } from "./lib/args.mjs";
 import { loadConfig } from "./lib/config.mjs";
 import { writeJson } from "./lib/files.mjs";
-import { fetchIssue, fetchIssueComments } from "./lib/github.mjs";
+import { fetchIssue, fetchIssueComments, fetchPullRequest } from "./lib/github.mjs";
 import { issueBranchName } from "./lib/names.mjs";
 import { setOutput } from "./lib/output.mjs";
 
@@ -39,11 +39,6 @@ if (!issueNumber) {
   process.exit(0);
 }
 
-if (event.issue?.pull_request) {
-  setSkip("This workflow handles issues, not pull request comments.");
-  process.exit(0);
-}
-
 if (["issue_comment", "issues"].includes(eventName) && !triggerMatches(triggerBody)) {
   setSkip(`Comment did not mention ${provider}.`);
   process.exit(0);
@@ -64,12 +59,24 @@ if (
 
 const issue = await fetchIssue(issueNumber);
 const comments = await fetchIssueComments(issueNumber);
-const headBranch = issueBranchName({
-  provider,
-  issueNumber,
-  title: issue.title
-});
-const prTitle = `${provider === "codex" ? "Codex" : "Claude"}: ${issue.title}`;
+const pull = issue.pull_request ? await fetchPullRequest(issueNumber) : null;
+
+if (pull && pull.head.repo.full_name !== process.env.GITHUB_REPOSITORY) {
+  setSkip("This workflow can only update pull request branches in this repository.");
+  process.exit(0);
+}
+
+const headBranch = pull
+  ? pull.head.ref
+  : issueBranchName({
+      provider,
+      issueNumber,
+      title: issue.title
+    });
+const baseBranch = pull ? pull.base.ref : config.baseBranch;
+const prTitle = pull
+  ? pull.title
+  : `${provider === "codex" ? "Codex" : "Claude"}: ${issue.title}`;
 
 const context = {
   provider,
@@ -95,8 +102,19 @@ const context = {
     htmlUrl: comment.html_url
   })),
   headBranch,
-  baseBranch: config.baseBranch,
-  prTitle
+  baseBranch,
+  prTitle,
+  target: pull
+    ? {
+        kind: "pull_request",
+        number: pull.number,
+        htmlUrl: pull.html_url,
+        baseBranch: pull.base.ref,
+        headBranch: pull.head.ref
+      }
+    : {
+        kind: "issue"
+      }
 };
 
 await writeJson(".agent/runtime/issue-context.json", context);
@@ -104,6 +122,8 @@ await writeJson(".agent/runtime/issue-context.json", context);
 setOutput("should_run", "true");
 setOutput("issue_number", issue.number);
 setOutput("head_branch", headBranch);
-setOutput("base_branch", config.baseBranch);
+setOutput("base_branch", baseBranch);
 setOutput("pr_title", prTitle);
 setOutput("context_file", ".agent/runtime/issue-context.json");
+setOutput("target_kind", context.target.kind);
+setOutput("pr_number", pull?.number ?? "");

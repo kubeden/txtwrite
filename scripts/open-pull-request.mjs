@@ -30,6 +30,26 @@ const body = [
   "- This PR was generated after I was tagged in the issue."
 ].join("\n");
 
+if (context.target?.kind === "pull_request") {
+  const prNumber = context.target.number;
+  await addIssueLabels(prNumber, [config.labels.agentPr].filter(Boolean));
+  await createIssueComment(
+    prNumber,
+    [
+      "I pushed another update to this PR.",
+      "",
+      neon.enabled
+        ? `I used Neon preview branch \`${neon.branchName}\` (${neon.databaseUrlRedacted}).`
+        : "No Neon preview branch was configured.",
+      "",
+      "The PR preview workflow should rebuild from the new commit."
+    ].join("\n")
+  );
+  setOutput("pr_number", prNumber);
+  setOutput("pr_url", context.target.htmlUrl);
+  process.exit(0);
+}
+
 const pull =
   existing ??
   (await createPullRequest({

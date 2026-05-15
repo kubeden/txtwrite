@@ -21,8 +21,6 @@ jobs:
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v5
