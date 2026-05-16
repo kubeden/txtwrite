@@ -107,6 +107,12 @@ jobs:
           ZOT_REGISTRY_PASSWORD: ${{ secrets.ZOT_REGISTRY_PASSWORD }}
         run: node scripts/run-configured-command.mjs deploy
 
+      - name: Wait for preview URL
+        env:
+          PREVIEW_WAIT_TIMEOUT_SECONDS: "600"
+          PREVIEW_WAIT_INTERVAL_SECONDS: "10"
+        run: node scripts/wait-preview-url.mjs
+
       - name: Comment preview details
         env:
           GITHUB_TOKEN: ${{ github.token }}

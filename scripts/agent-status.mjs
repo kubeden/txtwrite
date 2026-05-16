@@ -106,7 +106,7 @@ const messages = {
     ...statusList(previewStages, stage),
     "",
     neonLine(),
-    "I will build the image, push it to the registry, and update the GitOps preview branch."
+    "I will build the image, push it to the registry, update the GitOps preview branch, and wait for Argo CD to make the preview URL reachable."
   ],
   previewCleanup: [
     "Status: preview cleanup running",
