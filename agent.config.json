@@ -61,5 +61,9 @@
     "clusterIssuer": "letsencrypt-prod",
     "containerPort": 4173,
     "servicePort": 80
+  },
+  "argocd": {
+    "server": "https://argocd.k6nis.dev",
+    "applicationNamespace": "argocd"
   }
 }

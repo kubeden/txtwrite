@@ -13,6 +13,10 @@ const DEFAULT_CONFIG = {
     deployCommand: "",
     urlFile: ".agent/runtime/preview-url.txt"
   },
+  argocd: {
+    server: "",
+    applicationNamespace: "argocd"
+  },
   neon: {
     databaseName: "neondb",
     roleName: "neondb_owner",
@@ -39,6 +43,7 @@ export async function loadConfig() {
     labels: { ...DEFAULT_CONFIG.labels, ...(config.labels ?? {}) },
     commands: { ...DEFAULT_CONFIG.commands, ...(config.commands ?? {}) },
     preview: { ...DEFAULT_CONFIG.preview, ...(config.preview ?? {}) },
+    argocd: { ...DEFAULT_CONFIG.argocd, ...(config.argocd ?? {}) },
     neon: {
       ...DEFAULT_CONFIG.neon,
       ...(config.neon ?? {}),
