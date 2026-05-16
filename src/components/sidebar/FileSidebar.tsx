@@ -1263,15 +1263,10 @@ export default function FileSidebar({
         <button
           type="button"
           onClick={() => void signOut()}
-          className="flex items-center gap-2 py-2 px-2 hover:bg-neutral-200 hover:dark:bg-neutral-800 cursor-pointer text-sm w-full rounded-sm text-left"
+          className="flex items-center gap-2 py-2 px-2 bg-red-500 hover:bg-red-600 dark:bg-red-800 dark:hover:bg-red-700 cursor-pointer text-sm w-full rounded-sm text-left text-white"
         >
-          <LogOut
-            size={14}
-            className="text-neutral-500 dark:text-neutral-400"
-          />
-          <span className="text-neutral-600 dark:text-neutral-300">
-            Log out
-          </span>
+          <LogOut size={14} className="text-white" />
+          <span>Log out</span>
         </button>
       </div>
     </div>
