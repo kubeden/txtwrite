@@ -1,9 +1,11 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import { loadConfig } from "./lib/config.mjs";
 import { readJson } from "./lib/files.mjs";
 import {
   addIssueLabels,
   createPullRequest,
+  dispatchWorkflow,
   findOpenPullByHead
 } from "./lib/github.mjs";
 import { setOutput } from "./lib/output.mjs";
@@ -27,6 +29,27 @@ const agentStages = [
   { stage: "checksPassed", label: "Configured checks passed" },
   { stage: "prReady", label: "Draft PR is ready" }
 ];
+
+function currentHeadSha() {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+}
+
+async function dispatchPreviewWorkflow({ pullNumber, baseBranch, headBranch }) {
+  if (!config.preview?.enabled) return;
+  const workflowFile = config.preview.workflowFile || "preview-neon.yml";
+  await dispatchWorkflow(workflowFile, {
+    ref: baseBranch,
+    inputs: {
+      pr_number: String(pullNumber),
+      head_branch: headBranch,
+      head_sha: currentHeadSha()
+    }
+  });
+}
 
 const existing = await findOpenPullByHead(context.headBranch);
 const body = [
@@ -56,6 +79,11 @@ const body = [
 if (context.target?.kind === "pull_request") {
   const prNumber = context.target.number;
   await addIssueLabels(prNumber, [config.labels.agentPr].filter(Boolean));
+  await dispatchPreviewWorkflow({
+    pullNumber: prNumber,
+    baseBranch: context.target.baseBranch,
+    headBranch: context.target.headBranch
+  });
   await updateAgentProgressComment(
     prNumber,
     [
@@ -72,6 +100,7 @@ if (context.target?.kind === "pull_request") {
       neon.enabled
         ? `I used Neon preview branch \`${neon.branchName}\` (${neon.databaseUrlRedacted}).`
         : "No Neon preview branch was configured.",
+      config.preview?.enabled ? "I dispatched the preview workflow for this update." : "",
       "",
       "The PR preview workflow should rebuild from the new commit."
     ]
@@ -93,6 +122,11 @@ const pull =
   }));
 
 await addIssueLabels(pull.number, [config.labels.agentPr].filter(Boolean));
+await dispatchPreviewWorkflow({
+  pullNumber: pull.number,
+  baseBranch: pull.base.ref,
+  headBranch: pull.head.ref
+});
 
 const comment = [
   openedNewPull ? "Status: draft PR opened" : "Status: draft PR updated",
@@ -112,6 +146,7 @@ const comment = [
   neon.enabled
     ? `I used Neon preview branch \`${neon.branchName}\` (${neon.databaseUrlRedacted}).`
     : "No Neon preview branch was configured.",
+  config.preview?.enabled ? "I dispatched the preview workflow." : "",
   "",
   "The PR is draft so the diff, migration behavior, and preview can be reviewed before merge."
 ];

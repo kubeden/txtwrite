@@ -93,6 +93,17 @@ export async function createPullRequest({ title, body, head, base, draft = true 
   });
 }
 
+export async function dispatchWorkflow(workflowId, { ref, inputs = {} }) {
+  const { owner, repo } = repoContext();
+  return githubRequest(
+    `/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflowId)}/dispatches`,
+    {
+      method: "POST",
+      body: JSON.stringify({ ref, inputs })
+    }
+  );
+}
+
 export async function addIssueLabels(issueNumber, labels) {
   if (!labels.length) return null;
   const { owner, repo } = repoContext();

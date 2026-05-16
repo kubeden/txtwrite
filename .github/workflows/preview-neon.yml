@@ -4,6 +4,17 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [feat/neon-backend]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to preview
+        required: true
+      head_branch:
+        description: Pull request head branch
+        required: true
+      head_sha:
+        description: Optional pull request head commit SHA
+        required: false
 
 permissions:
   contents: read
@@ -11,16 +22,18 @@ permissions:
   issues: write
 
 concurrency:
-  group: preview-${{ github.event.pull_request.number }}
+  group: preview-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
   preview:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.head_sha || inputs.head_branch }}
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -52,15 +65,15 @@ jobs:
           NEON_PROVISION_DATA_API: ${{ vars.NEON_PROVISION_DATA_API }}
           NEON_AUTH_PROVIDER: ${{ vars.NEON_AUTH_PROVIDER }}
           NEON_DATA_API_AUTH_PROVIDER: ${{ vars.NEON_DATA_API_AUTH_PROVIDER }}
-          NEON_AUTH_TRUSTED_DOMAINS: https://md-pr-${{ github.event.pull_request.number }}.k6nis.dev
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          NEON_AUTH_TRUSTED_DOMAINS: https://md-pr-${{ github.event.pull_request.number || inputs.pr_number }}.k6nis.dev
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref || inputs.head_branch }}
         run: node scripts/neon-preview.mjs create
 
       - name: Say preview is starting
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/agent-status.mjs --stage previewStarted
 
       - name: Run migrations and checks
@@ -88,8 +101,8 @@ jobs:
           DATABASE_URL: ${{ steps.neon.outputs.database_url }}
           VITE_NEON_AUTH_URL: ${{ steps.neon.outputs.auth_url }}
           VITE_NEON_DATA_API_URL: ${{ steps.neon.outputs.data_api_url }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || inputs.head_sha }}
           ZOT_REGISTRY_USERNAME: ${{ secrets.ZOT_REGISTRY_USERNAME }}
           ZOT_REGISTRY_PASSWORD: ${{ secrets.ZOT_REGISTRY_PASSWORD }}
         run: node scripts/run-configured-command.mjs deploy
@@ -97,5 +110,5 @@ jobs:
       - name: Comment preview details
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/comment-preview.mjs

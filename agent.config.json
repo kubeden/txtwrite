@@ -15,6 +15,7 @@
   },
   "preview": {
     "enabled": true,
+    "workflowFile": "preview-neon.yml",
     "deployCommand": "node scripts/deploy-preview-gitops.mjs",
     "cleanupCommand": "node scripts/cleanup-preview-gitops.mjs",
     "urlFile": ".agent/runtime/preview-url.txt"
