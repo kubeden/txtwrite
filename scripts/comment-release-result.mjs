@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { loadConfig } from "./lib/config.mjs";
-import { createIssueComment, fetchPullRequest } from "./lib/github.mjs";
+import { fetchPullRequest } from "./lib/github.mjs";
+import { statusList, updateAgentProgressComment } from "./lib/status-comment.mjs";
 import {
   cleanupLine,
   extractSummaryFromPullBody,
@@ -15,6 +16,11 @@ const pull = await fetchPullRequest(prNumber);
 const merged = process.env.MERGED === "true";
 const sourceIssueNumber = sourceIssueNumberFromText(pull.body);
 const summary = extractSummaryFromPullBody(pull.body);
+const releaseStages = [
+  { stage: "productionStarted", label: "Production deploy started" },
+  { stage: "previewCleanup", label: "Preview cleanup started" },
+  { stage: "releaseDone", label: "Release and cleanup completed" }
+];
 const productionUrl =
   process.env.PRODUCTION_URL ||
   config.production?.url ||
@@ -34,7 +40,9 @@ const productionDetails = [
 
 const prBody = merged
   ? [
-      "Merged and deployed.",
+      "Status: merged and deployed",
+      "",
+      ...statusList(releaseStages, "releaseDone"),
       "",
       `PR: #${prNumber} ${pull.title}`,
       "",
@@ -47,7 +55,9 @@ const prBody = merged
       .filter(Boolean)
       .join("\n")
   : [
-      "PR closed without merge.",
+      "Status: PR closed without merge",
+      "",
+      "- [x] Preview cleanup completed",
       "",
       `PR: #${prNumber} ${pull.title}`,
       cleanup
@@ -55,11 +65,15 @@ const prBody = merged
       .filter(Boolean)
       .join("\n");
 
-await createIssueComment(prNumber, prBody);
+await updateAgentProgressComment(prNumber, prBody);
 
 if (sourceIssueNumber && sourceIssueNumber !== prNumber) {
   const issueBody = merged
     ? [
+        "Status: merged and deployed",
+        "",
+        ...statusList(releaseStages, "releaseDone"),
+        "",
         `PR #${prNumber} was merged and deployed to production.`,
         "",
         "Merged changes:",
@@ -73,6 +87,10 @@ if (sourceIssueNumber && sourceIssueNumber !== prNumber) {
         .filter(Boolean)
         .join("\n")
     : [
+        "Status: PR closed without merge",
+        "",
+        "- [x] Preview cleanup completed",
+        "",
         `PR #${prNumber} was closed without merge.`,
         "",
         cleanup,
@@ -82,5 +100,5 @@ if (sourceIssueNumber && sourceIssueNumber !== prNumber) {
         .filter(Boolean)
         .join("\n");
 
-  await createIssueComment(sourceIssueNumber, issueBody);
+  await updateAgentProgressComment(sourceIssueNumber, issueBody);
 }

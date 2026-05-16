@@ -2,7 +2,8 @@
 import { readFile } from "node:fs/promises";
 import { loadConfig } from "./lib/config.mjs";
 import { readJson } from "./lib/files.mjs";
-import { createIssueComment, fetchPullRequest } from "./lib/github.mjs";
+import { fetchPullRequest } from "./lib/github.mjs";
+import { statusList, updateAgentProgressComment } from "./lib/status-comment.mjs";
 import { sourceIssueNumberFromText } from "./lib/summaries.mjs";
 
 const config = await loadConfig();
@@ -11,6 +12,10 @@ const prNumber = Number(process.env.PR_NUMBER || process.env.GITHUB_REF_NAME?.ma
 if (!prNumber) throw new Error("PR_NUMBER is required.");
 const pull = await fetchPullRequest(prNumber);
 const sourceIssueNumber = sourceIssueNumberFromText(pull.body);
+const previewStages = [
+  { stage: "previewStarted", label: "Preview workflow started" },
+  { stage: "previewReady", label: "Preview environment is ready" }
+];
 
 let previewUrl = "";
 try {
@@ -20,7 +25,9 @@ try {
 }
 
 const previewLines = [
-  "Preview environment ready.",
+  "Status: preview environment ready",
+  "",
+  ...statusList(previewStages, "previewReady"),
   "",
   previewUrl ? `URL: ${previewUrl}` : "The deploy adapter did not return a preview URL.",
   neon.enabled
@@ -29,16 +36,18 @@ const previewLines = [
   neon.enabled && neon.expiresAt ? `That branch expires at ${neon.expiresAt}.` : "",
   "",
   "Use this environment for review only. I did not write database credentials into comments or commits."
-]
-  .filter(Boolean)
-  .join("\n");
+];
 
-await createIssueComment(prNumber, previewLines);
+await updateAgentProgressComment(prNumber, previewLines);
 
 if (sourceIssueNumber && sourceIssueNumber !== prNumber) {
-  await createIssueComment(
+  await updateAgentProgressComment(
     sourceIssueNumber,
     [
+      "Status: preview environment ready",
+      "",
+      ...statusList(previewStages, "previewReady"),
+      "",
       `Preview for PR #${prNumber} is ready.`,
       "",
       previewUrl ? `URL: ${previewUrl}` : "The deploy adapter did not return a preview URL.",
@@ -46,7 +55,5 @@ if (sourceIssueNumber && sourceIssueNumber !== prNumber) {
       "",
       `PR: ${pull.html_url}`
     ]
-      .filter(Boolean)
-      .join("\n")
   );
 }

@@ -3,11 +3,11 @@ import { loadConfig } from "./lib/config.mjs";
 import { readJson } from "./lib/files.mjs";
 import {
   addIssueLabels,
-  createIssueComment,
   createPullRequest,
   findOpenPullByHead
 } from "./lib/github.mjs";
 import { setOutput } from "./lib/output.mjs";
+import { statusList, updateAgentProgressComment } from "./lib/status-comment.mjs";
 import {
   changedFilesSummary,
   codexSummary,
@@ -20,6 +20,13 @@ const config = await loadConfig();
 const summary = await codexSummary();
 const changedFiles = changedFilesSummary();
 const checks = configuredCheckSummary(config.commands);
+const agentStages = [
+  { stage: "pickedUp", label: "Agent accepted the request" },
+  { stage: "neonReady", label: "Preview database branch is ready" },
+  { stage: "runningAgent", label: "Codex is making changes" },
+  { stage: "checksPassed", label: "Configured checks passed" },
+  { stage: "prReady", label: "Draft PR is ready" }
+];
 
 const existing = await findOpenPullByHead(context.headBranch);
 const body = [
@@ -49,10 +56,12 @@ const body = [
 if (context.target?.kind === "pull_request") {
   const prNumber = context.target.number;
   await addIssueLabels(prNumber, [config.labels.agentPr].filter(Boolean));
-  await createIssueComment(
+  await updateAgentProgressComment(
     prNumber,
     [
-      "I pushed another update to this PR.",
+      "Status: PR updated",
+      "",
+      ...statusList(agentStages, "prReady"),
       "",
       "Summary:",
       ...summary,
@@ -65,7 +74,7 @@ if (context.target?.kind === "pull_request") {
         : "No Neon preview branch was configured.",
       "",
       "The PR preview workflow should rebuild from the new commit."
-    ].join("\n")
+    ]
   );
   setOutput("pr_number", prNumber);
   setOutput("pr_url", context.target.htmlUrl);
@@ -86,6 +95,10 @@ const pull =
 await addIssueLabels(pull.number, [config.labels.agentPr].filter(Boolean));
 
 const comment = [
+  openedNewPull ? "Status: draft PR opened" : "Status: draft PR updated",
+  "",
+  ...statusList(agentStages, "prReady"),
+  "",
   openedNewPull
     ? `I opened draft PR #${pull.number}: ${pull.html_url}`
     : `I updated draft PR #${pull.number}: ${pull.html_url}`,
@@ -101,9 +114,9 @@ const comment = [
     : "No Neon preview branch was configured.",
   "",
   "The PR is draft so the diff, migration behavior, and preview can be reviewed before merge."
-].join("\n");
+];
 
-await createIssueComment(context.issue.number, comment);
+await updateAgentProgressComment(context.issue.number, comment);
 
 setOutput("pr_number", pull.number);
 setOutput("pr_url", pull.html_url);

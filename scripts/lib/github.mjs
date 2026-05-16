@@ -60,6 +60,22 @@ export async function createIssueComment(issueNumber, body) {
   });
 }
 
+export async function updateIssueComment(commentId, body) {
+  const { owner, repo } = repoContext();
+  return githubRequest(`/repos/${owner}/${repo}/issues/comments/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ body })
+  });
+}
+
+export async function upsertIssueComment(issueNumber, marker, body) {
+  const markedBody = `${marker}\n${body}`;
+  const comments = await fetchIssueComments(issueNumber);
+  const existing = comments.find((comment) => String(comment.body || "").includes(marker));
+  if (existing) return updateIssueComment(existing.id, markedBody);
+  return createIssueComment(issueNumber, markedBody);
+}
+
 export async function findOpenPullByHead(headBranch) {
   const { owner, repo } = repoContext();
   const head = `${owner}:${headBranch}`;
