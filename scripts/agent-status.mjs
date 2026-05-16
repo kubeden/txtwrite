@@ -35,8 +35,8 @@ function neonLine() {
 
 const messages = {
   pickedUp: [
-    "I picked this up.",
-    `I am going to work from \`${baseBranch}\`${branch ? ` and push \`${branch}\`` : ""}.`,
+    "Agent running.",
+    `I accepted this request and will work from \`${baseBranch}\`${branch ? ` on \`${branch}\`` : ""}.`,
     runUrl ? `Run: ${runUrl}` : ""
   ],
   neonReady: [
@@ -45,7 +45,7 @@ const messages = {
     "I will use that branch for migrations and checks; I will not print credentials."
   ],
   runningAgent: [
-    "I have enough context and I am handing the task to Codex now.",
+    "Codex is making the code changes now.",
     "After it finishes, I will run the configured checks and open a draft PR if there is a diff."
   ],
   checksPassed: [
@@ -62,9 +62,9 @@ const messages = {
     "Once the underlying problem is fixed, rerun the command and I will try again."
   ],
   previewStarted: [
-    "I am building the PR preview now.",
+    "Preview workflow running.",
     neonLine(),
-    "Next I will build the image, push it to the registry, and update the GitOps preview branch."
+    "I will build the image, push it to the registry, and update the GitOps preview branch."
   ],
   previewCleanup: [
     "I am cleaning up this preview now.",

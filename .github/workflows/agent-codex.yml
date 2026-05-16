@@ -26,9 +26,10 @@ concurrency:
 jobs:
   implement:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      github.actor == 'kubeden' &&
+      (github.event_name == 'workflow_dispatch' ||
       github.event_name == 'issues' ||
-      github.event_name == 'issue_comment'
+      github.event_name == 'issue_comment')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout base branch
@@ -116,21 +117,40 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/agent-status.mjs --stage runningAgent
 
+      - name: Install Codex CLI
+        if: steps.prepare.outputs.should_run == 'true'
+        run: npm install -g @openai/codex
+
+      - name: Restore Codex auth
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+        run: |
+          if [ -z "$CODEX_AUTH_JSON" ]; then
+            echo "CODEX_AUTH_JSON secret is required."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/codex-home"
+          umask 077
+          printf '%s' "$CODEX_AUTH_JSON" > "$RUNNER_TEMP/codex-home/auth.json"
+
       - name: Run Codex
         if: steps.prepare.outputs.should_run == 'true'
         id: codex
-        uses: openai/codex-action@v1
         env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
           DATABASE_URL: ${{ steps.neon.outputs.database_url }}
           NEON_BRANCH_ID: ${{ steps.neon.outputs.branch_id }}
           NEON_BRANCH_NAME: ${{ steps.neon.outputs.branch_name }}
           VITE_NEON_AUTH_URL: ${{ steps.neon.outputs.auth_url }}
           VITE_NEON_DATA_API_URL: ${{ steps.neon.outputs.data_api_url }}
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: ${{ steps.prompt.outputs.prompt_file }}
-          output-file: .agent/runtime/codex-final.md
-          sandbox: workspace-write
+        run: |
+          codex exec \
+            --cd "$GITHUB_WORKSPACE" \
+            --sandbox workspace-write \
+            --ask-for-approval never \
+            --output-last-message .agent/runtime/codex-final.md \
+            - < "${{ steps.prompt.outputs.prompt_file }}"
 
       - name: Run configured checks
         if: steps.prepare.outputs.should_run == 'true'
@@ -179,3 +199,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ steps.prepare.outputs.issue_number }}
         run: node scripts/agent-status.mjs --stage failed
+
+      - name: Remove Codex auth
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/codex-home"

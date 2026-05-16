@@ -31,8 +31,16 @@ function setSkip(reason) {
   console.log(`Skipping agent run: ${reason}`);
 }
 
+function actorAllowed(actor) {
+  const allowedActors = config.allowedActors ?? [];
+  if (!allowedActors.length) return true;
+  const normalizedActor = String(actor || "").toLowerCase();
+  return allowedActors.some((allowed) => String(allowed).toLowerCase() === normalizedActor);
+}
+
 let issueNumber = event.issue?.number || Number(event.inputs?.issue_number || 0);
 let triggerBody = event.comment?.body || event.inputs?.prompt || event.issue?.body || "";
+const triggerActor = event.sender?.login || process.env.GITHUB_ACTOR || "";
 
 if (!issueNumber) {
   setSkip("No issue number found.");
@@ -41,6 +49,11 @@ if (!issueNumber) {
 
 if (["issue_comment", "issues"].includes(eventName) && !triggerMatches(triggerBody)) {
   setSkip(`Comment did not mention ${provider}.`);
+  process.exit(0);
+}
+
+if (!actorAllowed(triggerActor)) {
+  setSkip(`Actor ${triggerActor || "unknown"} is not allowed.`);
   process.exit(0);
 }
 
@@ -82,7 +95,7 @@ const context = {
   provider,
   trigger: {
     eventName,
-    actor: event.sender?.login || process.env.GITHUB_ACTOR || "",
+    actor: triggerActor,
     association,
     body: triggerBody
   },

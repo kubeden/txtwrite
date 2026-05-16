@@ -29,6 +29,9 @@ Issue URL: {{issue_url}}
 
 ## Instructions
 
+The full issue title, description, and all fetched issue comments/replies are
+included above. Read them before editing.
+
 You are running inside GitHub Actions on a trusted repository branch created
 for this issue.
 

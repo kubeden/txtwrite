@@ -42,7 +42,14 @@ export async function fetchPullRequest(pullNumber) {
 
 export async function fetchIssueComments(issueNumber) {
   const { owner, repo } = repoContext();
-  return githubRequest(`/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100`);
+  const comments = [];
+  for (let page = 1; ; page += 1) {
+    const batch = await githubRequest(
+      `/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`
+    );
+    comments.push(...batch);
+    if (batch.length < 100) return comments;
+  }
 }
 
 export async function createIssueComment(issueNumber, body) {

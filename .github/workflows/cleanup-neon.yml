@@ -108,31 +108,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: node scripts/run-configured-command.mjs cleanup
 
-      - name: Comment cleanup result
+      - name: Comment release result
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITOPS_TOKEN || github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITOPS_TOKEN || github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-        run: |
-          if [ "${{ github.event.pull_request.merged == true || inputs.merged == 'true' }}" = "true" ]; then
-            body="Merged and deployed.
-
-          Production: ${{ steps.production.outputs.production_url }}
-          Image: \`${{ steps.production.outputs.image }}\`
-          Trace image: \`${{ steps.production.outputs.trace_image }}\`
-          GitOps commit: \`${{ steps.production.outputs.gitops_commit }}\`
-
-          "
-          else
-            body="Cleanup is done.
-
-          "
-          fi
-
-          if [ "${{ steps.neon.outputs.deleted }}" = "true" ]; then
-            body="${body}I deleted the Neon preview branch \`${{ steps.neon.outputs.branch_name }}\` and removed the GitOps preview manifests."
-          else
-            body="${body}I removed the GitOps preview manifests. Neon did not delete a branch: ${{ steps.neon.outputs.reason }}"
-          fi
-
-          gh pr comment "$PR_NUMBER" --body "$body"
+          MERGED: ${{ github.event.pull_request.merged == true || inputs.merged == 'true' }}
+          PRODUCTION_URL: ${{ steps.production.outputs.production_url }}
+          IMAGE: ${{ steps.production.outputs.image }}
+          TRACE_IMAGE: ${{ steps.production.outputs.trace_image }}
+          GITOPS_COMMIT: ${{ steps.production.outputs.gitops_commit }}
+          NEON_DELETED: ${{ steps.neon.outputs.deleted }}
+          NEON_BRANCH_NAME: ${{ steps.neon.outputs.branch_name }}
+          NEON_DELETE_REASON: ${{ steps.neon.outputs.reason }}
+        run: node scripts/comment-release-result.mjs

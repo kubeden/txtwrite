@@ -8,18 +8,34 @@ import {
   findOpenPullByHead
 } from "./lib/github.mjs";
 import { setOutput } from "./lib/output.mjs";
+import {
+  changedFilesSummary,
+  codexSummary,
+  configuredCheckSummary
+} from "./lib/summaries.mjs";
 
 const context = await readJson(".agent/runtime/issue-context.json");
 const neon = await readJson(".agent/runtime/neon.json", { enabled: false });
 const config = await loadConfig();
+const summary = await codexSummary();
+const changedFiles = changedFilesSummary();
+const checks = configuredCheckSummary(config.commands);
 
 const existing = await findOpenPullByHead(context.headBranch);
 const body = [
-  `Implements #${context.issue.number}.`,
+  `Related issue: #${context.issue.number}`,
   "",
-  "## What I Did",
-  `- Provider: ${context.provider}`,
-  `- Source issue: #${context.issue.number}`,
+  "## Summary",
+  ...summary,
+  "",
+  "## Important Changes",
+  ...changedFiles,
+  "",
+  "## Checks",
+  ...checks,
+  "",
+  "## Preview",
+  "- The preview workflow will post the review URL after it finishes.",
   neon.enabled
     ? `- Neon branch: ${neon.branchName} (${neon.branchId}), expires ${neon.expiresAt || "not set"}`
     : "- Neon branch: not configured",
@@ -38,6 +54,12 @@ if (context.target?.kind === "pull_request") {
     [
       "I pushed another update to this PR.",
       "",
+      "Summary:",
+      ...summary,
+      "",
+      "Checks passed:",
+      ...checks,
+      "",
       neon.enabled
         ? `I used Neon preview branch \`${neon.branchName}\` (${neon.databaseUrlRedacted}).`
         : "No Neon preview branch was configured.",
@@ -50,6 +72,7 @@ if (context.target?.kind === "pull_request") {
   process.exit(0);
 }
 
+const openedNewPull = !existing;
 const pull =
   existing ??
   (await createPullRequest({
@@ -63,13 +86,21 @@ const pull =
 await addIssueLabels(pull.number, [config.labels.agentPr].filter(Boolean));
 
 const comment = [
-  `I opened a draft PR for this: ${pull.html_url}`,
+  openedNewPull
+    ? `I opened draft PR #${pull.number}: ${pull.html_url}`
+    : `I updated draft PR #${pull.number}: ${pull.html_url}`,
+  "",
+  "Summary:",
+  ...summary,
+  "",
+  "Checks passed:",
+  ...checks,
   "",
   neon.enabled
     ? `I used Neon preview branch \`${neon.branchName}\` (${neon.databaseUrlRedacted}).`
     : "No Neon preview branch was configured.",
   "",
-  "I left it as a draft so the diff, migration behavior, and preview can be reviewed before merge."
+  "The PR is draft so the diff, migration behavior, and preview can be reviewed before merge."
 ].join("\n");
 
 await createIssueComment(context.issue.number, comment);

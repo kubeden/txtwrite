@@ -1,5 +1,6 @@
 {
   "baseBranch": "feat/neon-backend",
+  "allowedActors": ["kubeden"],
   "allowedAuthorAssociations": ["OWNER", "MEMBER", "COLLABORATOR"],
   "labels": {
     "agentPr": "agent",
