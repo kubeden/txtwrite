@@ -147,8 +147,7 @@ jobs:
         run: |
           codex exec \
             --cd "$GITHUB_WORKSPACE" \
-            --sandbox workspace-write \
-            --ask-for-approval never \
+            --dangerously-bypass-approvals-and-sandbox \
             --output-last-message .agent/runtime/codex-final.md \
             - < "${{ steps.prompt.outputs.prompt_file }}"
 
