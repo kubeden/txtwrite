@@ -68,7 +68,9 @@ async function fetchArgoApplication({ server, token, appName, appNamespace }) {
       }
     })();
     const message = `Argo CD API ${response.status}: ${truncate(detail)}`;
-    if (response.status === 401 || response.status === 403) throw new Error(message);
+    if (response.status === 401 || response.status === 403) {
+      return { exists: false, authDenied: true, detail: message };
+    }
     return { exists: false, transient: true, detail: message };
   }
 
@@ -176,6 +178,7 @@ function appDetailLines(app) {
 
 const deadline = Date.now() + timeoutSeconds * 1000;
 let lastStage = "";
+let argoPollingUnavailable = false;
 
 console.log(`Waiting up to ${timeoutSeconds}s for preview app ${appName} and ${previewUrl}`);
 await updateProgress("gitopsPushed", [
@@ -201,6 +204,15 @@ if (argoToken && argoServer) {
         lastStage = stage;
       }
       if (stage === "appHealthy") break;
+    } else if (result.authDenied) {
+      argoPollingUnavailable = true;
+      console.warn(`${appName}: ${result.detail}`);
+      await updateProgress("gitopsPushed", [
+        result.detail,
+        "Argo CD status polling is unavailable for this token; falling back to public URL polling."
+      ]);
+      lastStage = "gitopsPushed";
+      break;
     } else if (result.transient) {
       console.log(`${appName}: ${result.detail}`);
       if (!lastStage) {
@@ -218,7 +230,7 @@ if (argoToken && argoServer) {
     await sleep(argoIntervalSeconds * 1000);
   }
 
-  if (lastStage !== "appHealthy") {
+  if (!argoPollingUnavailable && lastStage !== "appHealthy") {
     throw new Error(`Argo CD app ${appName} did not become Synced and Healthy within ${timeoutSeconds}s.`);
   }
 } else if (argoToken && !argoServer) {
