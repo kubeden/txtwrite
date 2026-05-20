@@ -6,7 +6,6 @@ import type { DocumentRecord, DocumentVersion } from "../types/documents.ts";
 type Tables = Database["public"]["Tables"];
 type DocumentRow = Tables["documents"]["Row"];
 type DocumentInsert = Tables["documents"]["Insert"];
-type DocumentCountInsert = Tables["document_counts"]["Insert"];
 type VersionRow = Tables["document_versions"]["Row"];
 type VersionInsert = Tables["document_versions"]["Insert"];
 type WorkspaceRow = Tables["user_workspace_state"]["Row"];
@@ -212,22 +211,6 @@ export const saveSnapshotToCloud = async (snapshot: LocalSnapshot) => {
         onConflict: "id",
       }) as QueryResult<unknown>,
       "Save documents",
-    );
-
-    const now = new Date().toISOString();
-    const documentCounts: DocumentCountInsert[] = snapshot.documents.map(
-      (document) => ({
-        document_id: document.id,
-        document_count: snapshot.documents.length,
-        updated_at: now,
-      }),
-    );
-
-    assertOk(
-      await client.from("document_counts").upsert(documentCounts, {
-        onConflict: "document_id",
-      }) as QueryResult<unknown>,
-      "Save document counts",
     );
   }
 
