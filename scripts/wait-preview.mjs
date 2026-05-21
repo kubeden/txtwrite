@@ -68,8 +68,11 @@ async function fetchArgoApplication({ server, token, appName, appNamespace }) {
       }
     })();
     const message = `Argo CD API ${response.status}: ${truncate(detail)}`;
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       return { exists: false, authDenied: true, detail: message };
+    }
+    if (response.status === 403) {
+      return { exists: false, forbidden: true, detail: message };
     }
     return { exists: false, transient: true, detail: message };
   }
@@ -97,6 +100,7 @@ const argoServer = (process.env.ARGOCD_SERVER || argocd.server || "").replace(/\
 const argoToken = process.env.ARGOCD_AUTH_TOKEN || "";
 const timeoutSeconds = secondsFromEnv("PREVIEW_WAIT_TIMEOUT_SECONDS", 600);
 const argoIntervalSeconds = secondsFromEnv("PREVIEW_WAIT_INTERVAL_SECONDS", 5);
+const argoForbiddenGraceSeconds = secondsFromEnv("PREVIEW_ARGO_FORBIDDEN_GRACE_SECONDS", 300);
 const urlTimeoutSeconds = secondsFromEnv(
   "PREVIEW_URL_WAIT_TIMEOUT_SECONDS",
   argoToken ? 300 : timeoutSeconds
@@ -179,6 +183,7 @@ function appDetailLines(app) {
 const deadline = Date.now() + timeoutSeconds * 1000;
 let lastStage = "";
 let argoPollingUnavailable = false;
+let firstForbiddenAt = 0;
 
 console.log(`Waiting up to ${timeoutSeconds}s for preview app ${appName} and ${previewUrl}`);
 await updateProgress("gitopsPushed", [
@@ -213,6 +218,24 @@ if (argoToken && argoServer) {
       ]);
       lastStage = "gitopsPushed";
       break;
+    } else if (result.forbidden) {
+      firstForbiddenAt ||= Date.now();
+      console.warn(`${appName}: ${result.detail}`);
+      if (lastStage !== "gitopsPushed") {
+        await updateProgress("gitopsPushed", [
+          result.detail,
+          "Argo CD can return 403 before ApplicationSet creates the preview app; I will keep polling Argo CD before falling back to URL-only checks."
+        ]);
+        lastStage = "gitopsPushed";
+      }
+      if (Date.now() - firstForbiddenAt >= argoForbiddenGraceSeconds * 1000) {
+        argoPollingUnavailable = true;
+        await updateProgress("gitopsPushed", [
+          result.detail,
+          "Argo CD kept returning 403 after the grace window; falling back to public URL polling."
+        ]);
+        break;
+      }
     } else if (result.transient) {
       console.log(`${appName}: ${result.detail}`);
       if (!lastStage) {
