@@ -10,9 +10,14 @@ interface StatusBarProps {
   getLineAndColumn?: () => { line: number; column: number };
 }
 
+interface DocumentCounts {
+  characters: number;
+  words: number;
+  documents: number;
+}
+
 interface StatusBarViewProps {
-  markdownText: string;
-  documentCount: number;
+  counts: DocumentCounts;
   line: number;
   column: number;
   syncEnabled: boolean;
@@ -22,8 +27,7 @@ interface StatusBarViewProps {
 }
 
 function MobileStatusBar({
-  markdownText,
-  documentCount,
+  counts,
   line,
   column,
   syncEnabled,
@@ -37,14 +41,14 @@ function MobileStatusBar({
         <div className="flex min-w-0 items-center gap-2">
           <span>
             <span className="text-neutral-800 dark:text-neutral-500">
-              {markdownText.split(/\s+/).filter(Boolean).length}
+              {counts.words}
             </span>{" "}
             Words
           </span>
           <span className="hidden sm:inline">/</span>
           <span className="hidden sm:inline">
             <span className="text-neutral-800 dark:text-neutral-500">
-              {documentCount}
+              {counts.documents}
             </span>{" "}
             Docs
           </span>
@@ -80,8 +84,7 @@ function MobileStatusBar({
 }
 
 function DesktopStatusBar({
-  markdownText,
-  documentCount,
+  counts,
   line,
   column,
   syncError,
@@ -94,21 +97,21 @@ function DesktopStatusBar({
         <div className="flex items-center gap-x-2">
           <span>
             <span className="text-neutral-700 dark:text-neutral-600">
-              {markdownText.length}
+              {counts.characters}
             </span>{" "}
             Characters
           </span>
           <span>/</span>
           <span>
             <span className="text-neutral-700 dark:text-neutral-600">
-              {markdownText.split(/\s+/).filter(Boolean).length}
+              {counts.words}
             </span>{" "}
             Words
           </span>
           <span>/</span>
           <span>
             <span className="text-neutral-700 dark:text-neutral-600">
-              {documentCount}
+              {counts.documents}
             </span>{" "}
             Documents
           </span>
@@ -169,6 +172,12 @@ export default function StatusBar({
     ? "bg-amber-500"
     : "bg-green-500";
 
+  const counts: DocumentCounts = {
+    characters: markdownText.length,
+    words: markdownText.split(/\s+/).filter(Boolean).length,
+    documents: documentCount,
+  };
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(globalThis.innerWidth < 768);
@@ -180,8 +189,7 @@ export default function StatusBar({
   }, []);
 
   const viewProps: StatusBarViewProps = {
-    markdownText,
-    documentCount,
+    counts,
     line,
     column,
     syncEnabled,
