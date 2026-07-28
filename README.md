@@ -69,10 +69,10 @@ automatically.
 - The app stores the active workspace locally for editor compatibility, but
   clears it on sign out and when a different Neon Auth user signs in.
 
-## Preview Automation
+## Agent Automation
 
-GitHub Actions can create Codex-authored PRs from trusted issue comments and
-deploy PR previews to Kubernetes through the `kubeden/kubeden` GitOps repo.
+GitHub Actions can create Codex-authored PRs from trusted issue comments. Each
+run gets its own Neon branch for migrations and checks.
 
 Required secrets:
 
@@ -104,16 +104,11 @@ NEON_AUTH_PROVIDER
 NEON_DATA_API_AUTH_PROVIDER
 ```
 
-The PR preview workflow provisions or reuses a Neon branch, resolves
-branch-specific Auth and Data API URLs, runs migrations, builds a Docker image
-with those public URLs as build args, and pushes preview manifests to the
-`txtwrite-previews` branch in the GitOps repo.
-
 When a PR into `feat/neon-backend` is merged, the close workflow runs the
 production migration with `PROD_DATABASE_URL`, builds and pushes
 `registry.k6nis.dev/txtwrite/neon:latest`, updates the main `md` GitOps
-deployment, and then removes the preview GitOps manifests and Neon branch.
-Closing a PR without merging only removes the preview resources.
+deployment, and then deletes the PR's Neon branch. Closing a PR without
+merging only deletes the Neon branch.
 
 ---
 

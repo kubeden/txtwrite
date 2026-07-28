@@ -18,7 +18,7 @@ const sourceIssueNumber = sourceIssueNumberFromText(pull.body);
 const summary = extractSummaryFromPullBody(pull.body);
 const releaseStages = [
   { stage: "productionStarted", label: "Production deploy started" },
-  { stage: "previewCleanup", label: "Preview cleanup started" },
+  { stage: "previewCleanup", label: "Neon branch cleanup started" },
   { stage: "releaseDone", label: "Release and cleanup completed" }
 ];
 const productionUrl =
@@ -57,7 +57,7 @@ const prBody = merged
   : [
       "Status: PR closed without merge",
       "",
-      "- [x] Preview cleanup completed",
+      "- [x] Neon branch cleanup completed",
       "",
       `PR: #${prNumber} ${pull.title}`,
       cleanup
@@ -89,7 +89,7 @@ if (sourceIssueNumber && sourceIssueNumber !== prNumber) {
     : [
         "Status: PR closed without merge",
         "",
-        "- [x] Preview cleanup completed",
+        "- [x] Neon branch cleanup completed",
         "",
         `PR #${prNumber} was closed without merge.`,
         "",

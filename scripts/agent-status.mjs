@@ -41,14 +41,9 @@ const agentStages = [
   { stage: "prReady", label: "Draft PR is ready" }
 ];
 
-const previewStages = [
-  { stage: "previewStarted", label: "Preview workflow started" },
-  { stage: "previewReady", label: "Preview environment is ready" }
-];
-
 const releaseStages = [
   { stage: "productionStarted", label: "Production deploy started" },
-  { stage: "previewCleanup", label: "Preview cleanup started" },
+  { stage: "previewCleanup", label: "Neon branch cleanup started" },
   { stage: "releaseDone", label: "Release and cleanup completed" }
 ];
 
@@ -100,20 +95,12 @@ const messages = {
     runUrl ? `The Actions run has the details: ${runUrl}` : "The Actions run has the details.",
     "Once the underlying problem is fixed, rerun the command and I will try again."
   ],
-  previewStarted: [
-    "Status: preview workflow running",
-    "",
-    ...statusList(previewStages, stage),
-    "",
-    neonLine(),
-    "I will build the image, push it to the registry, update the GitOps preview branch, and wait for Argo CD to make the preview URL reachable."
-  ],
   previewCleanup: [
-    "Status: preview cleanup running",
+    "Status: cleanup running",
     "",
     ...statusList(releaseStages, stage),
     "",
-    "I will remove the GitOps manifests and delete the Neon preview branch if it still exists."
+    "I will delete the Neon preview branch if it still exists."
   ],
   productionStarted: [
     "Status: production deploy running",
@@ -121,7 +108,7 @@ const messages = {
     ...statusList(releaseStages, stage),
     "",
     "This PR was merged, so I am deploying it to the main md app now.",
-    "I will run the production migration, publish the production image, update GitOps, and then clean up the preview resources."
+    "I will run the production migration, publish the production image, update GitOps, and then delete the Neon preview branch."
   ]
 };
 
