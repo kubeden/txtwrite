@@ -103,11 +103,6 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref || inputs.head_branch }}
         run: node scripts/neon-preview.mjs delete
 
-      - name: Cleanup GitOps preview
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-        run: node scripts/run-configured-command.mjs cleanup
-
       - name: Comment release result
         continue-on-error: true
         env:
