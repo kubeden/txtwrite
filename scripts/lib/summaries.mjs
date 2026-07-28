@@ -125,11 +125,11 @@ export function extractSummaryFromPullBody(body) {
 export function cleanupLine({ deleted, branchName, reason }) {
   if (deleted === "true") {
     return branchName
-      ? `Preview cleanup: deleted Neon branch \`${branchName}\` and removed the GitOps preview manifests.`
-      : "Preview cleanup: deleted the Neon preview branch and removed the GitOps preview manifests.";
+      ? `Cleanup: deleted Neon branch \`${branchName}\`.`
+      : "Cleanup: deleted the Neon preview branch.";
   }
 
   return reason
-    ? `Preview cleanup: removed the GitOps preview manifests. Neon branch cleanup reported: ${reason}`
-    : "Preview cleanup: removed the GitOps preview manifests.";
+    ? `Cleanup: Neon branch cleanup reported: ${reason}`
+    : "Cleanup: no Neon branch to delete.";
 }

@@ -34,5 +34,5 @@ or pull request. It is safe for migrations and destructive development tests.
 Do not assume it contains production data unless the issue explicitly says so.
 
 The browser app reads `VITE_NEON_AUTH_URL` and `VITE_NEON_DATA_API_URL` at build
-time. Preview images must be built after the Neon preview branch has produced
+time. Builds against a Neon branch must run after that branch has produced
 branch-specific public URLs.
